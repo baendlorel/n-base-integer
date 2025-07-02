@@ -60,7 +60,9 @@ export class NBaseInteger {
   private static clone(a: NBaseInteger, priv: symbol): NBaseInteger {
     protect(priv);
     const clone = new NBaseInteger(0, a.charset, flag);
-    clone.digits.push(...a.digits);
+    for (let i = 0; i < a.digits.length; i++) {
+      clone.digits[i] = a.digits[i];
+    }
     return clone;
   }
 
@@ -70,14 +72,17 @@ export class NBaseInteger {
     const ad = a.digits;
     const bd = b.digits;
     const base = a.base;
-    let max = bd.length;
-    let min = ad.length;
+    let max = ad.length;
     if (ad.length > bd.length) {
-      max = ad.length;
-      min = bd.length;
       bd.fill(0, bd.length, max);
+      for (let i = bd.length; i < max; i++) {
+        bd.push(0);
+      }
     } else {
-      ad.fill(0, ad.length, max);
+      max = bd.length;
+      for (let i = ad.length; i < max; i++) {
+        ad.push(0);
+      }
     }
 
     let carry = 0;

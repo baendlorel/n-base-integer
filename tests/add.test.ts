@@ -1,4 +1,4 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect, fit } from '@jest/globals';
 import { NBaseInteger } from '../src/n-base-integer';
 
 describe('NBaseInteger.add', () => {
@@ -6,7 +6,6 @@ describe('NBaseInteger.add', () => {
     const a = NBaseInteger.from(123, 10);
     const b = NBaseInteger.from(456, 10);
     const c = a.add(b);
-    console.log('a', a.tenBaseDigits, 'b', b.tenBaseDigits);
 
     expect(c.toString()).toBe('579');
     // Ensure immutability
