@@ -5,13 +5,17 @@ const protect = (privateFlag: symbol, msg = `This method is prohibited from call
     throw new Error(msg);
   }
 };
+const safeInt = (n: number) => {
+  if (!Number.isSafeInteger(n)) {
+    throw new TypeError(`The method is not called with a safe integer, got ${n}.`);
+  }
+  return n;
+};
 
 /**
  * It is told that uppercase letters comes first
  */
 const BASE62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-
-const reverseRecordMap = new Map<string, Record<string, number>>();
 
 /**
  * NBase is a class for n-base numeral system
@@ -21,15 +25,12 @@ export class NBaseInteger {
   static from(n: number, base: number): NBaseInteger;
   static from(n: number, charset: string): NBaseInteger;
   static from(n: number, arg: number | string): NBaseInteger {
-    console.log('calling by', { n, arg }, 'Number.isSafeInteger(n)', Number.isSafeInteger(n));
-    if (!Number.isSafeInteger(n)) {
-      throw new TypeError(`${NAME}.from called with a non-number value.`);
-    }
-
+    safeInt(n);
     if (typeof arg === 'number') {
-      const base = arg;
-      if (base <= 1 || !Number.isSafeInteger(base)) {
-        throw new RangeError(`${NAME}.from called with a invalid base. Got '${base}'`);
+      const base = safeInt(arg);
+
+      if (base <= 1) {
+        throw new RangeError(`Base must >= 1.`);
       }
       if (base > 62) {
         throw new RangeError(
@@ -104,21 +105,9 @@ export class NBaseInteger {
    */
   private readonly digits: number[];
 
-  private readonly c2n: Record<string, number> = {};
-
   constructor(n: number, charset: string, priv: symbol) {
     protect(priv, `The constructor of ${NAME} is protected, please use ${NAME}.from instead.`);
     this.charset = charset;
-
-    if (reverseRecordMap.has(charset)) {
-      this.c2n = reverseRecordMap.get(charset) as Record<string, number>;
-    } else {
-      // creating reverse map
-      for (let i = 0; i < charset.length; i++) {
-        this.c2n[charset[i]] = i;
-      }
-      reverseRecordMap.set(charset, this.c2n);
-    }
 
     // creating
     const base = charset.length;
@@ -133,15 +122,15 @@ export class NBaseInteger {
     return this.charset.length;
   }
 
+  get tenBaseDigits(): number[] {
+    return this.digits.toReversed();
+  }
+
   add(nbi: NBaseInteger): NBaseInteger;
   add(n: number): NBaseInteger;
   add(arg: number | NBaseInteger): NBaseInteger {
     if (typeof arg === 'number') {
-      const n = arg;
-      if (!Number.isSafeInteger(n)) {
-        throw new TypeError(`${NAME}.add called with an unsafe integer.`);
-      }
-
+      const n = safeInt(arg);
       const b = new NBaseInteger(n, this.charset, flag);
       NBaseInteger.addAToB(this, b, flag);
       return b;
@@ -150,7 +139,10 @@ export class NBaseInteger {
     if (arg instanceof NBaseInteger) {
       const nbi = arg;
       if (nbi.base !== this.base) {
-        throw new RangeError(`${NAME}.add called with a ${NAME} with different base.`);
+        throw new TypeError(`${NAME}.add called with a ${NAME} with different base.`);
+      }
+      if (nbi.charset !== this.charset) {
+        throw new TypeError(`${NAME}.add called with a ${NAME} with different charset.`);
       }
 
       const b = NBaseInteger.clone(this, flag);
