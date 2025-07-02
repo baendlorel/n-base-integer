@@ -75,12 +75,12 @@ export class NBaseInteger {
     let max = ad.length;
     if (ad.length > bd.length) {
       bd.fill(0, bd.length, max);
-      for (let i = bd.length; i < max; i++) {
+      while (bd.length < max) {
         bd.push(0);
       }
     } else {
       max = bd.length;
-      for (let i = ad.length; i < max; i++) {
+      while (ad.length < max) {
         ad.push(0);
       }
     }
