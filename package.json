@@ -1,26 +1,32 @@
 {
-	"name": "jest-indexer",
+	"name": "n-base-integer",
 	"version": "0.0.1",
 	"author": {
 		"name": "KasukabeTsumugi",
 		"email": "futami16237@gmail.com"
 	},
-	"description": "Functions like `describe`, `it`, etc. now will be indexed automatically.",
+	"description": "Arbitrary-base integer with custom charset, supporting addition, subtraction, multiplication, comparison, and common base conversion utilities.",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"files": [
 		"dist"
 	],
 	"type": "module",
-	"homepage": "https://github.com/baendlorel/jest-indexer#readme",
+	"homepage": "https://github.com/baendlorel/n-base-integer#readme",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/baendlorel/jest-indexer"
+		"url": "https://github.com/baendlorel/n-base-integer"
 	},
 	"keywords": [
-		"reporter",
-		"test",
-		"jest",
+		"arbitrary base",
+		"base conversion",
+		"integer",
+		"arithmetic",
+		"addition",
+		"subtraction",
+		"multiplication",
+		"comparison",
+		"utility",
 		"typescript",
 		"javascript"
 	],
