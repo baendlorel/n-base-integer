@@ -1,10 +1,5 @@
-const NAME = 'NBaseInteger';
-const flag = Symbol();
-const protect = (privateFlag: symbol, msg = `This method is prohibited from calling.`) => {
-  if (privateFlag !== flag) {
-    throw new Error(msg);
-  }
-};
+import { NAME, Ordering, flag, protect } from './common';
+
 const safeInt = (n: number) => {
   if (!Number.isSafeInteger(n)) {
     throw new TypeError(`The method is not called with a safe integer, got ${n}.`);
@@ -108,6 +103,9 @@ export class NBaseInteger {
       }
     }
 
+    // if a>0 b>0 or a<0 b<0, then we can just add them
+    if (a.negative === b.negative) {
+    }
     let carry = 0;
     for (let i = 0; i < max; i++) {
       const v = ad[i] + bd[i] + carry;
@@ -178,6 +176,87 @@ export class NBaseInteger {
     return this;
   }
 
+  // # comparisons
+  private static compare(a: NBaseInteger, b: NBaseInteger, priv: symbol): Ordering {
+    protect(priv);
+    if (a === b) {
+      return Ordering.Equal;
+    }
+    if (a.negative !== b.negative) {
+      return a.negative ? Ordering.Less : Ordering.Greater;
+    }
+
+    const ad = a.digits;
+    const bd = b.digits;
+    if (ad.length !== bd.length) {
+      if (a.negative) {
+        return ad.length < bd.length ? Ordering.Greater : Ordering.Less;
+      } else {
+        return ad.length > bd.length ? Ordering.Greater : Ordering.Less;
+      }
+    }
+
+    if (a.negative) {
+      for (let i = ad.length - 1; i >= 0; i--) {
+        if (ad[i] !== bd[i]) {
+          return ad[i] < bd[i] ? Ordering.Greater : Ordering.Less;
+        }
+      }
+    } else {
+      for (let i = ad.length - 1; i >= 0; i--) {
+        if (ad[i] !== bd[i]) {
+          return ad[i] > bd[i] ? Ordering.Greater : Ordering.Less;
+        }
+      }
+    }
+
+    return Ordering.Equal; // they are equal
+  }
+
+  private cmp(arg: number | NBaseInteger, priv: symbol): Ordering {
+    const other = this.expectAnother(arg, false, flag);
+    return NBaseInteger.compare(this, other, flag);
+  }
+
+  eq(nbi: NBaseInteger): boolean;
+  eq(n: number): boolean;
+  eq(arg: number | NBaseInteger): boolean {
+    return this.cmp(arg, flag) === Ordering.Equal;
+  }
+
+  ne(nbi: NBaseInteger): boolean;
+  ne(n: number): boolean;
+  ne(arg: number | NBaseInteger): boolean {
+    return this.cmp(arg, flag) !== Ordering.Equal;
+  }
+
+  gt(nbi: NBaseInteger): boolean;
+  gt(n: number): boolean;
+  gt(arg: number | NBaseInteger): boolean {
+    return this.cmp(arg, flag) === Ordering.Greater;
+  }
+
+  gte(nbi: NBaseInteger): boolean;
+  gte(n: number): boolean;
+  gte(arg: number | NBaseInteger): boolean {
+    const o = this.cmp(arg, flag);
+    return o === Ordering.Greater || o === Ordering.Equal;
+  }
+
+  lt(nbi: NBaseInteger): boolean;
+  lt(n: number): boolean;
+  lt(arg: number | NBaseInteger): boolean {
+    return this.cmp(arg, flag) === Ordering.Less;
+  }
+
+  lte(nbi: NBaseInteger): boolean;
+  lte(n: number): boolean;
+  lte(arg: number | NBaseInteger): boolean {
+    const o = this.cmp(arg, flag);
+    return o === Ordering.Less || o === Ordering.Equal;
+  }
+
+  // # others
   toString(): string {
     return this.digits
       .map((digit) => this.charset[digit])
