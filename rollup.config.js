@@ -63,7 +63,7 @@ export default [
           },
         },
       }),
-    ],
+    ].filter(Boolean), // 过滤掉未使用的插件
     external: [], // 如果要包含所有依赖，这里保持空数组
   },
   // 类型声明打包

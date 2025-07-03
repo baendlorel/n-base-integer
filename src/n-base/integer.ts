@@ -98,10 +98,14 @@ export class NBaseInteger {
    */
   private safeOther(priv: symbol, arg: number | NBaseInteger): NBaseInteger {
     protect(priv);
+
+    // b is a normal number
     if (typeof arg === 'number') {
       const n = safeInt(arg);
       return new NBaseInteger(n, this.ns, flag);
     }
+
+    // b is also an NBaseInteger
     if (arg instanceof NBaseInteger) {
       const nbi = arg;
       if (nbi.base !== this.base) {
@@ -124,6 +128,7 @@ export class NBaseInteger {
    * The array extends from the ones place upwards.
    */
   private readonly digits: number[];
+
   private negative: boolean = false;
 
   constructor(n: number, ns: NS, priv: symbol) {
@@ -144,6 +149,14 @@ export class NBaseInteger {
 
   get base(): number {
     return this.ns.base;
+  }
+
+  get charset(): string {
+    return this.ns.charset;
+  }
+
+  get isNegative(): boolean {
+    return this.negative;
   }
 
   // # Calculation, Ensure bases and charsets are same, then call this
@@ -311,3 +324,5 @@ export class NBaseInteger {
       .join('');
   }
 }
+
+Reflect.setPrototypeOf(NBaseInteger, null);
