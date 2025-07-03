@@ -18,15 +18,21 @@ const safeCharset = (charset: string) => {
   return charset;
 };
 
+const createNs = (charset: string) =>
+  Array.from({ length: charset.length }, (_, i) => ({
+    charset: charset.substring(0, i + 1),
+    base: i + 1,
+  }));
+
 /**
  * Numerical System
  */
-const ns = {
-  charset: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
-  base: 62,
-};
+const ns = createNs('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz');
 
-type NS = typeof ns;
+interface NS {
+  charset: string;
+  base: number;
+}
 
 /**
  * NBase is a class for n-base numeral system
@@ -44,12 +50,12 @@ export class NBaseInteger {
       if (base <= 1) {
         throw new RangeError(`Base must >= 1.`);
       }
-      if (base > ns.base) {
+      if (base > ns.length) {
         throw new RangeError(
-          `Given base > ${ns.base}. Default charset is not enough, either set it or specify another charset.`
+          `Given base > ${ns.length}. Default charset is not enough, either set it or specify another charset.`
         );
       }
-      return new NBaseInteger(n, ns, flag);
+      return new NBaseInteger(n, ns[base - 1], flag);
     }
 
     // create with custom charset
@@ -65,15 +71,16 @@ export class NBaseInteger {
    * Get the default charset for NBaseInteger.
    */
   static get charset() {
-    return ns.charset;
+    return ns[ns.length - 1].charset;
   }
 
   /**
    * Set the default charset for NBaseInteger.
    */
   static set charset(charset: string) {
-    ns.charset = safeCharset(charset);
-    ns.base = ns.charset.length;
+    charset = safeCharset(charset);
+    ns.splice(0);
+    ns.push(...createNs(charset));
   }
 
   /**
@@ -189,7 +196,9 @@ export class NBaseInteger {
     if (a.negative === b.negative) {
       let carry = 0;
       for (let i = 0; i < max; i++) {
+        console.log('before add', a.toString(), b.toString());
         const v = ad[i] + bd[i] + carry;
+        console.log('v', v, 'ai', ad[i], 'bi', bd[i], 'carry', carry);
         if (v >= base) {
           carry = 1;
           bd[i] = v - base;
@@ -197,6 +206,7 @@ export class NBaseInteger {
           carry = 0;
           bd[i] = v;
         }
+        console.log('after add', a.toString(), b.toString());
       }
       if (carry > 0) {
         bd.push(carry);
@@ -204,15 +214,57 @@ export class NBaseInteger {
       return;
     }
 
-    // if a>0 b<0 or a<0 b>0, we need to judge the sign first
-    // only greater - less can be calculated
+    // now a b has different signs, we need to judge the sign first
+    // only `greater - less` can be calculated
+    switch (NBaseInteger.compareAbs(priv, a, b)) {
+      case Ordering.Equal: // means a = -b, then a + b = 0
+        {
+          b.digits.length = 1; // clear b
+          b.digits[0] = 0;
+          b.negative = false; // set sign to positive
+        }
+        return;
+      case Ordering.Greater: // means |a| > |b|, then a + b = sgn(a)(|a| - |b|)
+        {
+          b.negative = a.negative; // |a| is greater, so sign must be same as a
+          let carry = 0;
+          for (let i = 0; i < max; i++) {
+            const v = ad[i] - bd[i] - carry;
+            if (v < 0) {
+              carry = 1;
+              bd[i] = v + base;
+            } else {
+              carry = 0;
+              bd[i] = v;
+            }
+          }
+          // because |a| > |b|, therefore carry is 0.
+        }
+        return;
+      case Ordering.Less: // means |b| > |a|, then a + b = sgn(b)(|b| - |a|)
+        {
+          let carry = 0;
+          for (let i = 0; i < max; i++) {
+            const v = bd[i] - ad[i] - carry;
+            if (v < 0) {
+              carry = 1;
+              bd[i] = v - base;
+            } else {
+              carry = 0;
+              bd[i] = v;
+            }
+          }
+        }
+        // because |a| > |b|, therefore carry is 0.
+        return;
+    }
   }
 
   add(nbi: NBaseInteger): NBaseInteger;
   add(n: number): NBaseInteger;
   add(arg: number | NBaseInteger): NBaseInteger {
-    const other = this.safeOther(flag, arg);
-    NBaseInteger.addAToB(flag, this, NBaseInteger.clone(flag, other));
+    const other = NBaseInteger.clone(flag, this.safeOther(flag, arg));
+    NBaseInteger.addAToB(flag, this, other);
     return other;
   }
 
