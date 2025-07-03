@@ -7,10 +7,18 @@ const safeInt = (n: number) => {
   return n;
 };
 
+const safeCharset = (charset: string) => {
+  const deduped = new Set(charset.split(''));
+  if (charset.length !== deduped.size) {
+    throw new RangeError(`Given charset contains duplicate characters.`);
+  }
+  return charset;
+};
+
 /**
  * It is told that uppercase letters comes first
  */
-const BASE62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+let charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 
 /**
  * NBase is a class for n-base numeral system
@@ -23,36 +31,43 @@ export class NBaseInteger {
     safeInt(n);
     if (typeof arg === 'number') {
       const base = safeInt(arg);
-
       if (base <= 1) {
         throw new RangeError(`Base must >= 1.`);
       }
-      if (base > 62) {
+      if (base > charset.length) {
         throw new RangeError(
-          `You should specify the 'charset' to create a ${NAME} when 'base' > 62. For we ran out 0-9A-Za-z.`
+          `Given base > ${charset.length}. Default charset is not enough, either set it or specify a charset.`
         );
       }
-      return new NBaseInteger(n, BASE62.slice(0, base), flag);
+      return new NBaseInteger(n, charset.slice(0, base), flag);
     }
-
     if (typeof arg === 'string') {
-      const charset = arg;
-      const deduped = new Set(charset.split(''));
-      if (charset.length !== deduped.size) {
-        throw new RangeError(
-          `${NAME}.from called with a charset that contains duplicate characters.`
-        );
-      }
-
+      const charset = safeCharset(arg);
       return new NBaseInteger(n, charset, flag);
     }
-
-    throw new TypeError(
-      'NBase.from called with an invalid 2nd argument. Expected base or charset.'
-    );
+    throw new TypeError('Expect 2nd parameter to be a base or a charset.');
   }
 
-  private static clone(a: NBaseInteger, priv: symbol): NBaseInteger {
+  /**
+   * Get the default charset for NBaseInteger.
+   */
+  static get charset() {
+    return charset;
+  }
+
+  /**
+   * Set the default charset for NBaseInteger.
+   */
+  static set charset(newCharset: string) {
+    charset = safeCharset(newCharset);
+  }
+
+  /**
+   * Clone an NBaseInteger instance.
+   * @param priv Internal symbol for access control.
+   * @param a The instance to clone.
+   */
+  private static clone(priv: symbol, a: NBaseInteger): NBaseInteger {
     protect(priv);
     const clone = new NBaseInteger(0, a.charset, flag);
     for (let i = 0; i < a.digits.length; i++) {
@@ -61,15 +76,18 @@ export class NBaseInteger {
     return clone;
   }
 
-  // # Calculation, Ensure a.base === b.base and then call this
-
-  private expectAnother(arg: number | NBaseInteger, clone: boolean, priv: symbol): NBaseInteger {
+  /**
+   * Ensure argument is a valid NBaseInteger or number, optionally clone.
+   * @param priv Internal symbol for access control.
+   * @param arg The argument to check.
+   * @param clone Whether to clone the instance.
+   */
+  private expectAnother(priv: symbol, arg: number | NBaseInteger, clone: boolean): NBaseInteger {
     protect(priv);
     if (typeof arg === 'number') {
       const n = safeInt(arg);
       return new NBaseInteger(n, this.charset, flag);
     }
-
     if (arg instanceof NBaseInteger) {
       const nbi = arg;
       if (nbi.base !== this.base) {
@@ -78,14 +96,49 @@ export class NBaseInteger {
       if (nbi.charset !== this.charset) {
         throw new TypeError(`Called with a ${NAME} with different charset.`);
       }
-
-      return clone ? NBaseInteger.clone(nbi, flag) : nbi;
+      return clone ? NBaseInteger.clone(flag, nbi) : nbi;
     }
-
     throw new TypeError(`Called with an invalid argument. Expected number or ${NAME}.`);
   }
 
-  private static addAToB(a: NBaseInteger, b: NBaseInteger, priv: symbol): void {
+  // # private vars
+  private readonly charset: string;
+  /**
+   * digits[0] is the least significant digit (ones place),
+   * digits[1] is the next higher place, and so on.
+   * The array extends from the ones place upwards.
+   */
+  private readonly digits: number[];
+  private negative: boolean = false;
+
+  constructor(n: number, charset: string, priv: symbol) {
+    protect(priv, `The constructor of ${NAME} is protected, please use ${NAME}.from instead.`);
+    this.charset = charset;
+    if (n < 0) {
+      n = -n;
+      this.negative = true;
+    }
+    // creating
+    const base = charset.length;
+    this.digits = [];
+    do {
+      this.digits.push(n % base);
+      n = Math.floor(n / base);
+    } while (n > 0);
+  }
+
+  get base(): number {
+    return this.charset.length;
+  }
+
+  // # Calculation, Ensure bases and charsets are same, then call this
+  /**
+   * Add a to b in place.
+   * @param priv Internal symbol for access control.
+   * @param a The first operand.
+   * @param b The second operand (result stored here).
+   */
+  private static addAToB(priv: symbol, a: NBaseInteger, b: NBaseInteger): void {
     protect(priv);
     const ad = a.digits;
     const bd = b.digits;
@@ -102,90 +155,65 @@ export class NBaseInteger {
         ad.push(0);
       }
     }
-
-    // if a>0 b>0 or a<0 b<0, then we can just add them
     if (a.negative === b.negative) {
-    }
-    let carry = 0;
-    for (let i = 0; i < max; i++) {
-      const v = ad[i] + bd[i] + carry;
-      if (v >= base) {
-        carry = 1;
-        bd[i] = v - base;
-      } else {
-        carry = 0;
-        bd[i] = v;
+      let carry = 0;
+      for (let i = 0; i < max; i++) {
+        const v = ad[i] + bd[i] + carry;
+        if (v >= base) {
+          carry = 1;
+          bd[i] = v - base;
+        } else {
+          carry = 0;
+          bd[i] = v;
+        }
       }
+      if (carry > 0) {
+        bd.push(carry);
+      }
+      return;
     }
-    if (carry > 0) {
-      bd.push(carry);
-    }
-  }
-
-  // # private vars
-  private readonly charset: string;
-
-  /**
-   * digits[0] is the least significant digit (ones place),
-   * digits[1] is the next higher place, and so on.
-   * The array extends from the ones place upwards.
-   */
-  private readonly digits: number[];
-
-  private negative: boolean = false;
-
-  constructor(n: number, charset: string, priv: symbol) {
-    protect(priv, `The constructor of ${NAME} is protected, please use ${NAME}.from instead.`);
-    this.charset = charset;
-
-    if (n < 0) {
-      n = -n;
-      this.negative = true;
-    }
-
-    // creating
-    const base = charset.length;
-    this.digits = [];
-    do {
-      this.digits.push(n % base);
-      n = Math.floor(n / base);
-    } while (n > 0);
-  }
-
-  get base(): number {
-    return this.charset.length;
-  }
-
-  get tenBaseDigits(): number[] {
-    return this.digits.toReversed();
+    // if a>0 b<0 or a<0 b>0, we need to judge the sign first
   }
 
   add(nbi: NBaseInteger): NBaseInteger;
   add(n: number): NBaseInteger;
   add(arg: number | NBaseInteger): NBaseInteger {
-    const other = this.expectAnother(arg, true, flag);
-    NBaseInteger.addAToB(this, other, flag);
+    const other = this.expectAnother(flag, arg, true);
+    NBaseInteger.addAToB(flag, this, other);
     return other;
   }
 
   addAssign(nbi: NBaseInteger): NBaseInteger;
   addAssign(n: number): NBaseInteger;
   addAssign(arg: number | NBaseInteger): NBaseInteger {
-    const other = this.expectAnother(arg, false, flag);
-    NBaseInteger.addAToB(other, this, flag);
+    const other = this.expectAnother(flag, arg, false);
+    NBaseInteger.addAToB(flag, other, this);
     return this;
   }
 
   // # comparisons
-  private static compare(a: NBaseInteger, b: NBaseInteger, priv: symbol): Ordering {
+  /**
+   * Compare two NBaseInteger instances.
+   * @param priv Internal symbol for access control.
+   * @param a The first operand.
+   * @param b The second operand.
+   */
+  private static compare(priv: symbol, a: NBaseInteger, b: NBaseInteger): Ordering {
     protect(priv);
     if (a === b) {
       return Ordering.Equal;
     }
     if (a.negative !== b.negative) {
+      if (
+        a.digits.length === 1 &&
+        b.digits.length === 1 &&
+        a.digits[0] === 0 &&
+        b.digits[0] === 0
+      ) {
+        return Ordering.Equal;
+      }
       return a.negative ? Ordering.Less : Ordering.Greater;
     }
-
     const ad = a.digits;
     const bd = b.digits;
     if (ad.length !== bd.length) {
@@ -195,7 +223,6 @@ export class NBaseInteger {
         return ad.length > bd.length ? Ordering.Greater : Ordering.Less;
       }
     }
-
     if (a.negative) {
       for (let i = ad.length - 1; i >= 0; i--) {
         if (ad[i] !== bd[i]) {
@@ -209,50 +236,54 @@ export class NBaseInteger {
         }
       }
     }
-
-    return Ordering.Equal; // they are equal
+    return Ordering.Equal;
   }
 
-  private cmp(arg: number | NBaseInteger, priv: symbol): Ordering {
-    const other = this.expectAnother(arg, false, flag);
-    return NBaseInteger.compare(this, other, flag);
+  /**
+   * Compare this instance with another.
+   * @param priv Internal symbol for access control.
+   * @param arg The value to compare with.
+   */
+  private cmp(priv: symbol, arg: number | NBaseInteger): Ordering {
+    const other = this.expectAnother(flag, arg, false);
+    return NBaseInteger.compare(flag, this, other);
   }
 
   eq(nbi: NBaseInteger): boolean;
   eq(n: number): boolean;
   eq(arg: number | NBaseInteger): boolean {
-    return this.cmp(arg, flag) === Ordering.Equal;
+    return this.cmp(flag, arg) === Ordering.Equal;
   }
 
   ne(nbi: NBaseInteger): boolean;
   ne(n: number): boolean;
   ne(arg: number | NBaseInteger): boolean {
-    return this.cmp(arg, flag) !== Ordering.Equal;
+    return this.cmp(flag, arg) !== Ordering.Equal;
   }
 
   gt(nbi: NBaseInteger): boolean;
   gt(n: number): boolean;
   gt(arg: number | NBaseInteger): boolean {
-    return this.cmp(arg, flag) === Ordering.Greater;
+    return this.cmp(flag, arg) === Ordering.Greater;
   }
 
   gte(nbi: NBaseInteger): boolean;
   gte(n: number): boolean;
   gte(arg: number | NBaseInteger): boolean {
-    const o = this.cmp(arg, flag);
+    const o = this.cmp(flag, arg);
     return o === Ordering.Greater || o === Ordering.Equal;
   }
 
   lt(nbi: NBaseInteger): boolean;
   lt(n: number): boolean;
   lt(arg: number | NBaseInteger): boolean {
-    return this.cmp(arg, flag) === Ordering.Less;
+    return this.cmp(flag, arg) === Ordering.Less;
   }
 
   lte(nbi: NBaseInteger): boolean;
   lte(n: number): boolean;
   lte(arg: number | NBaseInteger): boolean {
-    const o = this.cmp(arg, flag);
+    const o = this.cmp(flag, arg);
     return o === Ordering.Less || o === Ordering.Equal;
   }
 
