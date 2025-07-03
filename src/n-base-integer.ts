@@ -67,6 +67,33 @@ export class NBaseInteger {
   }
 
   // # Calculation, Ensure a.base === b.base and then call this
+
+  private expectAnother(
+    arg: number | NBaseInteger,
+    createANewOne: boolean,
+    priv: symbol
+  ): NBaseInteger {
+    protect(priv);
+    if (typeof arg === 'number') {
+      const n = safeInt(arg);
+      return new NBaseInteger(n, this.charset, flag);
+    }
+
+    if (arg instanceof NBaseInteger) {
+      const nbi = arg;
+      if (nbi.base !== this.base) {
+        throw new TypeError(`Called with a ${NAME} with different base.`);
+      }
+      if (nbi.charset !== this.charset) {
+        throw new TypeError(`Called with a ${NAME} with different charset.`);
+      }
+
+      return createANewOne ? NBaseInteger.clone(nbi, flag) : nbi;
+    }
+
+    throw new TypeError(`Called with an invalid argument. Expected number or ${NAME}.`);
+  }
+
   private static addAToB(a: NBaseInteger, b: NBaseInteger, priv: symbol): void {
     protect(priv);
     const ad = a.digits;
@@ -134,28 +161,17 @@ export class NBaseInteger {
   add(nbi: NBaseInteger): NBaseInteger;
   add(n: number): NBaseInteger;
   add(arg: number | NBaseInteger): NBaseInteger {
-    if (typeof arg === 'number') {
-      const n = safeInt(arg);
-      const b = new NBaseInteger(n, this.charset, flag);
-      NBaseInteger.addAToB(this, b, flag);
-      return b;
-    }
+    const other = this.expectAnother(arg, true, flag);
+    NBaseInteger.addAToB(this, other, flag);
+    return other;
+  }
 
-    if (arg instanceof NBaseInteger) {
-      const nbi = arg;
-      if (nbi.base !== this.base) {
-        throw new TypeError(`${NAME}.add called with a ${NAME} with different base.`);
-      }
-      if (nbi.charset !== this.charset) {
-        throw new TypeError(`${NAME}.add called with a ${NAME} with different charset.`);
-      }
-
-      const b = NBaseInteger.clone(this, flag);
-      NBaseInteger.addAToB(nbi, b, flag);
-      return b;
-    }
-
-    throw new TypeError(`${NAME}.add called with an invalid argument. Expected number or ${NAME}.`);
+  addAssign(nbi: NBaseInteger): NBaseInteger;
+  addAssign(n: number): NBaseInteger;
+  addAssign(arg: number | NBaseInteger): NBaseInteger {
+    const other = this.expectAnother(arg, false, flag);
+    NBaseInteger.addAToB(other, this, flag);
+    return this;
   }
 
   toString(): string {
