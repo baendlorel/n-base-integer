@@ -8,6 +8,9 @@ const safeInt = (n: number) => {
 };
 
 const safeCharset = (charset: string) => {
+  if (charset.length < 2) {
+    throw new RangeError(`Charset must contain at least 2 characters.`);
+  }
   const deduped = new Set(charset.split(''));
   if (charset.length !== deduped.size) {
     throw new RangeError(`Given charset contains duplicate characters.`);
@@ -16,9 +19,14 @@ const safeCharset = (charset: string) => {
 };
 
 /**
- * It is told that uppercase letters comes first
+ * Numerical System
  */
-let charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+const ns = {
+  charset: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
+  base: 62,
+};
+
+type NS = typeof ns;
 
 /**
  * NBase is a class for n-base numeral system
@@ -29,22 +37,27 @@ export class NBaseInteger {
   static from(n: number, charset: string): NBaseInteger;
   static from(n: number, arg: number | string): NBaseInteger {
     safeInt(n);
+
+    // create with default charset
     if (typeof arg === 'number') {
       const base = safeInt(arg);
       if (base <= 1) {
         throw new RangeError(`Base must >= 1.`);
       }
-      if (base > charset.length) {
+      if (base > ns.base) {
         throw new RangeError(
-          `Given base > ${charset.length}. Default charset is not enough, either set it or specify a charset.`
+          `Given base > ${ns.base}. Default charset is not enough, either set it or specify another charset.`
         );
       }
-      return new NBaseInteger(n, charset.slice(0, base), flag);
+      return new NBaseInteger(n, ns, flag);
     }
+
+    // create with custom charset
     if (typeof arg === 'string') {
       const charset = safeCharset(arg);
-      return new NBaseInteger(n, charset, flag);
+      return new NBaseInteger(n, { charset, base: charset.length }, flag);
     }
+
     throw new TypeError('Expect 2nd parameter to be a base or a charset.');
   }
 
@@ -52,14 +65,15 @@ export class NBaseInteger {
    * Get the default charset for NBaseInteger.
    */
   static get charset() {
-    return charset;
+    return ns.charset;
   }
 
   /**
    * Set the default charset for NBaseInteger.
    */
-  static set charset(newCharset: string) {
-    charset = safeCharset(newCharset);
+  static set charset(charset: string) {
+    ns.charset = safeCharset(charset);
+    ns.base = ns.charset.length;
   }
 
   /**
@@ -69,7 +83,7 @@ export class NBaseInteger {
    */
   private static clone(priv: symbol, a: NBaseInteger): NBaseInteger {
     protect(priv);
-    const clone = new NBaseInteger(0, a.charset, flag);
+    const clone = new NBaseInteger(0, a.ns, flag);
     for (let i = 0; i < a.digits.length; i++) {
       clone.digits[i] = a.digits[i];
     }
@@ -82,27 +96,28 @@ export class NBaseInteger {
    * @param arg The argument to check.
    * @param clone Whether to clone the instance.
    */
-  private expectAnother(priv: symbol, arg: number | NBaseInteger, clone: boolean): NBaseInteger {
+  private safeOther(priv: symbol, arg: number | NBaseInteger): NBaseInteger {
     protect(priv);
     if (typeof arg === 'number') {
       const n = safeInt(arg);
-      return new NBaseInteger(n, this.charset, flag);
+      return new NBaseInteger(n, this.ns, flag);
     }
     if (arg instanceof NBaseInteger) {
       const nbi = arg;
       if (nbi.base !== this.base) {
         throw new TypeError(`Called with a ${NAME} with different base.`);
       }
-      if (nbi.charset !== this.charset) {
+      if (nbi.ns.charset !== this.ns.charset) {
         throw new TypeError(`Called with a ${NAME} with different charset.`);
       }
-      return clone ? NBaseInteger.clone(flag, nbi) : nbi;
+      return nbi;
     }
     throw new TypeError(`Called with an invalid argument. Expected number or ${NAME}.`);
   }
 
   // # private vars
-  private readonly charset: string;
+  private readonly ns: NS;
+
   /**
    * digits[0] is the least significant digit (ones place),
    * digits[1] is the next higher place, and so on.
@@ -111,15 +126,15 @@ export class NBaseInteger {
   private readonly digits: number[];
   private negative: boolean = false;
 
-  constructor(n: number, charset: string, priv: symbol) {
+  constructor(n: number, ns: NS, priv: symbol) {
     protect(priv, `The constructor of ${NAME} is protected, please use ${NAME}.from instead.`);
-    this.charset = charset;
+    this.ns = ns;
     if (n < 0) {
       n = -n;
       this.negative = true;
     }
     // creating
-    const base = charset.length;
+    const base = this.ns.charset.length;
     this.digits = [];
     do {
       this.digits.push(n % base);
@@ -128,7 +143,7 @@ export class NBaseInteger {
   }
 
   get base(): number {
-    return this.charset.length;
+    return this.ns.base;
   }
 
   // # Calculation, Ensure bases and charsets are same, then call this
@@ -178,15 +193,15 @@ export class NBaseInteger {
   add(nbi: NBaseInteger): NBaseInteger;
   add(n: number): NBaseInteger;
   add(arg: number | NBaseInteger): NBaseInteger {
-    const other = this.expectAnother(flag, arg, true);
-    NBaseInteger.addAToB(flag, this, other);
+    const other = this.safeOther(flag, arg);
+    NBaseInteger.addAToB(flag, this, NBaseInteger.clone(flag, other));
     return other;
   }
 
   addAssign(nbi: NBaseInteger): NBaseInteger;
   addAssign(n: number): NBaseInteger;
   addAssign(arg: number | NBaseInteger): NBaseInteger {
-    const other = this.expectAnother(flag, arg, false);
+    const other = this.safeOther(flag, arg);
     NBaseInteger.addAToB(flag, other, this);
     return this;
   }
@@ -245,7 +260,8 @@ export class NBaseInteger {
    * @param arg The value to compare with.
    */
   private cmp(priv: symbol, arg: number | NBaseInteger): Ordering {
-    const other = this.expectAnother(flag, arg, false);
+    protect(priv);
+    const other = this.safeOther(flag, arg);
     return NBaseInteger.compare(flag, this, other);
   }
 
@@ -290,7 +306,7 @@ export class NBaseInteger {
   // # others
   toString(): string {
     return this.digits
-      .map((digit) => this.charset[digit])
+      .map((digit) => this.ns.charset[digit])
       .reverse()
       .join('');
   }
