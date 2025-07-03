@@ -129,7 +129,7 @@ export class NBaseInteger {
    */
   private readonly digits: number[];
 
-  private negative: boolean = false;
+  private negative = false;
 
   constructor(n: number, ns: NS, priv: symbol) {
     protect(priv, `The constructor of ${NAME} is protected, please use ${NAME}.from instead.`);
@@ -172,6 +172,7 @@ export class NBaseInteger {
     const bd = b.digits;
     const base = a.base;
     let max = ad.length;
+    // fill empty parts
     if (ad.length > bd.length) {
       bd.fill(0, bd.length, max);
       while (bd.length < max) {
@@ -183,6 +184,8 @@ export class NBaseInteger {
         ad.push(0);
       }
     }
+
+    // same sign, add them directly
     if (a.negative === b.negative) {
       let carry = 0;
       for (let i = 0; i < max; i++) {
@@ -200,7 +203,9 @@ export class NBaseInteger {
       }
       return;
     }
+
     // if a>0 b<0 or a<0 b>0, we need to judge the sign first
+    // only greater - less can be calculated
   }
 
   add(nbi: NBaseInteger): NBaseInteger;
@@ -267,6 +272,24 @@ export class NBaseInteger {
     return Ordering.Equal;
   }
 
+  private static compareAbs(priv: symbol, a: NBaseInteger, b: NBaseInteger): Ordering {
+    protect(priv);
+    if (a === b) {
+      return Ordering.Equal;
+    }
+    const ad = a.digits;
+    const bd = b.digits;
+    if (ad.length !== bd.length) {
+      return ad.length > bd.length ? Ordering.Greater : Ordering.Less;
+    }
+    for (let i = ad.length - 1; i >= 0; i--) {
+      if (ad[i] !== bd[i]) {
+        return ad[i] > bd[i] ? Ordering.Greater : Ordering.Less;
+      }
+    }
+    return Ordering.Equal;
+  }
+
   /**
    * Compare this instance with another.
    * @param priv Internal symbol for access control.
@@ -276,6 +299,17 @@ export class NBaseInteger {
     protect(priv);
     const other = this.safeOther(flag, arg);
     return NBaseInteger.compare(flag, this, other);
+  }
+
+  /**
+   * Compare this instance with another ignoring sign.
+   * @param priv Internal symbol for access control.
+   * @param arg The value to compare with.
+   */
+  private cmpAbs(priv: symbol, arg: number | NBaseInteger): Ordering {
+    protect(priv);
+    const other = this.safeOther(flag, arg);
+    return NBaseInteger.compareAbs(flag, this, other);
   }
 
   eq(nbi: NBaseInteger): boolean;
@@ -316,6 +350,44 @@ export class NBaseInteger {
     return o === Ordering.Less || o === Ordering.Equal;
   }
 
+  eqAbs(nbi: NBaseInteger): boolean;
+  eqAbs(n: number): boolean;
+  eqAbs(arg: number | NBaseInteger): boolean {
+    return this.cmpAbs(flag, arg) === Ordering.Equal;
+  }
+
+  neAbs(nbi: NBaseInteger): boolean;
+  neAbs(n: number): boolean;
+  neAbs(arg: number | NBaseInteger): boolean {
+    return this.cmpAbs(flag, arg) !== Ordering.Equal;
+  }
+
+  gtAbs(nbi: NBaseInteger): boolean;
+  gtAbs(n: number): boolean;
+  gtAbs(arg: number | NBaseInteger): boolean {
+    return this.cmpAbs(flag, arg) === Ordering.Greater;
+  }
+
+  gteAbs(nbi: NBaseInteger): boolean;
+  gteAbs(n: number): boolean;
+  gteAbs(arg: number | NBaseInteger): boolean {
+    const o = this.cmpAbs(flag, arg);
+    return o === Ordering.Greater || o === Ordering.Equal;
+  }
+
+  ltAbs(nbi: NBaseInteger): boolean;
+  ltAbs(n: number): boolean;
+  ltAbs(arg: number | NBaseInteger): boolean {
+    return this.cmpAbs(flag, arg) === Ordering.Less;
+  }
+
+  lteAbs(nbi: NBaseInteger): boolean;
+  lteAbs(n: number): boolean;
+  lteAbs(arg: number | NBaseInteger): boolean {
+    const o = this.cmpAbs(flag, arg);
+    return o === Ordering.Less || o === Ordering.Equal;
+  }
+
   // # others
   toString(): string {
     return this.digits
@@ -324,5 +396,3 @@ export class NBaseInteger {
       .join('');
   }
 }
-
-Reflect.setPrototypeOf(NBaseInteger, null);
