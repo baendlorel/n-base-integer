@@ -179,8 +179,8 @@ export class NBaseInteger {
    */
   private static addAToB(priv: symbol, a: NBaseInteger, b: NBaseInteger): void {
     protect(priv);
-    const ad = a.digits;
-    const bd = b.digits;
+    const ad = a.digits.slice();
+    const bd = b.digits; // because b will change, there is no need to slice.
     const base = a.base;
     let max = ad.length;
     // fill empty parts
@@ -292,6 +292,38 @@ export class NBaseInteger {
     const other = this.safeOther(flag, arg);
     NBaseInteger.addAToB(flag, other, this);
     return this;
+  }
+
+  sub(nbi: NBaseInteger): NBaseInteger;
+  sub(n: number): NBaseInteger;
+  sub(arg: number | NBaseInteger): NBaseInteger {
+    const other = NBaseInteger.clone(flag, this.safeOther(flag, arg));
+    other.opp();
+    NBaseInteger.addAToB(flag, this, other);
+    return other;
+  }
+
+  subAssign(nbi: NBaseInteger): NBaseInteger;
+  subAssign(n: number): NBaseInteger;
+  subAssign(arg: number | NBaseInteger): NBaseInteger {
+    const other = this.safeOther(flag, arg);
+    other.opp();
+    NBaseInteger.addAToB(flag, other, this);
+    other.opp();
+    return this;
+  }
+
+  // # signs
+  opp() {
+    this.negative = !this.negative;
+  }
+
+  neg() {
+    this.negative = true;
+  }
+
+  pos() {
+    this.negative = false;
   }
 
   // # comparisons
