@@ -6,6 +6,8 @@ import commonjs from '@rollup/plugin-commonjs';
 import alias from '@rollup/plugin-alias';
 import terser from '@rollup/plugin-terser';
 import babel from '@rollup/plugin-babel';
+import { isPromise, isProxy } from 'util/types';
+import { exit } from 'process';
 
 const tsconfigFile = './tsconfig.build.json';
 
@@ -30,6 +32,48 @@ const prox = (a, name) =>
       }
     },
   });
+
+const b = babel(
+  prox(
+    {
+      babelHelpers: 'bundled',
+      extensions: ['.ts', '.tsx', '.js', '.jsx'],
+      presets: [['@babel/preset-env', { targets: { node: '14' } }]],
+      plugins: [
+        [
+          '@babel/plugin-proposal-decorators',
+          {
+            version: '2021-12', // 使用新版装饰器，如需旧版使用 legacy: true
+          },
+        ],
+      ],
+    },
+    'babelist'
+  )
+);
+
+const t = typescript(
+  prox(
+    {
+      tsconfig: tsconfigFile,
+    },
+    'tsist'
+  )
+);
+console.log('babel', typeof b, 'isProxy', isProxy(b), 'isPromise', isPromise(b));
+
+for (const key in Object.getOwnPropertyDescriptors(b)) {
+  if (Object.prototype.hasOwnProperty.call(b, key)) {
+    const element = b[key];
+    if (typeof element === 'function') {
+      // 如果是函数，打印函数名和参数
+      console.log(`${key} :`, element.toString());
+    } else {
+      console.log('babel', element);
+    }
+  }
+}
+
 /**
  * @type {import('rollup').RollupOptions}
  */
