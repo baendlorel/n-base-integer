@@ -90,7 +90,7 @@ export class NBaseInteger {
    */
   private static clone(priv: symbol, a: NBaseInteger): NBaseInteger {
     protect(priv);
-    const clone = new NBaseInteger(0, a.ns, flag);
+    const clone = new NBaseInteger(a.sign, a.ns, flag);
     for (let i = 0; i < a.digits.length; i++) {
       clone.digits[i] = a.digits[i];
     }
@@ -162,8 +162,12 @@ export class NBaseInteger {
     return this.ns.charset;
   }
 
-  get isNegative(): boolean {
-    return this.negative;
+  get isZero(): boolean {
+    return this.digits.length === 1 && this.digits[0] === 0;
+  }
+
+  get sign(): -1 | 1 {
+    return this.negative ? -1 : 1;
   }
 
   // # Calculation, Ensure bases and charsets are same, then call this
@@ -196,9 +200,7 @@ export class NBaseInteger {
     if (a.negative === b.negative) {
       let carry = 0;
       for (let i = 0; i < max; i++) {
-        console.log('before add', a.toString(), b.toString());
         const v = ad[i] + bd[i] + carry;
-        console.log('v', v, 'ai', ad[i], 'bi', bd[i], 'carry', carry);
         if (v >= base) {
           carry = 1;
           bd[i] = v - base;
@@ -206,7 +208,6 @@ export class NBaseInteger {
           carry = 0;
           bd[i] = v;
         }
-        console.log('after add', a.toString(), b.toString());
       }
       if (carry > 0) {
         bd.push(carry);
@@ -229,7 +230,9 @@ export class NBaseInteger {
           b.negative = a.negative; // |a| is greater, so sign must be same as a
           let carry = 0;
           for (let i = 0; i < max; i++) {
+            // console.log('before add', a.toString(), b.toString());
             const v = ad[i] - bd[i] - carry;
+            // console.log('v', v, 'ai', ad[i], 'bi', bd[i], 'carry', carry);
             if (v < 0) {
               carry = 1;
               bd[i] = v + base;
@@ -237,8 +240,16 @@ export class NBaseInteger {
               carry = 0;
               bd[i] = v;
             }
+            // console.log('after add', a.toString(), b.toString());
           }
-          // because |a| > |b|, therefore carry is 0.
+          // greater - less, last carry is definitly 0.
+          // purge the zeros
+          for (let i = bd.length - 1; i >= 0; i--) {
+            if (bd[i] !== 0) {
+              bd.length = i + 1; // truncate the array
+              break;
+            }
+          }
         }
         return;
       case Ordering.Less: // means |b| > |a|, then a + b = sgn(b)(|b| - |a|)
@@ -254,8 +265,15 @@ export class NBaseInteger {
               bd[i] = v;
             }
           }
+          // greater - less, last carry is definitly 0.
+          // purge the zeros
+          for (let i = bd.length - 1; i >= 0; i--) {
+            if (bd[i] !== 0) {
+              bd.length = i + 1; // truncate the array
+              break;
+            }
+          }
         }
-        // because |a| > |b|, therefore carry is 0.
         return;
     }
   }
@@ -288,15 +306,10 @@ export class NBaseInteger {
     if (a === b) {
       return Ordering.Equal;
     }
+    if (a.isZero && b.isZero) {
+      return Ordering.Equal;
+    }
     if (a.negative !== b.negative) {
-      if (
-        a.digits.length === 1 &&
-        b.digits.length === 1 &&
-        a.digits[0] === 0 &&
-        b.digits[0] === 0
-      ) {
-        return Ordering.Equal;
-      }
       return a.negative ? Ordering.Less : Ordering.Greater;
     }
     const ad = a.digits;
@@ -442,9 +455,10 @@ export class NBaseInteger {
 
   // # others
   toString(): string {
-    return this.digits
+    const abs = this.digits
       .map((digit) => this.ns.charset[digit])
       .reverse()
       .join('');
+    return `${this.negative ? '-' : ''}${abs}`;
   }
 }

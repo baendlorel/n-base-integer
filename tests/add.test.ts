@@ -1,4 +1,4 @@
-import { describe, it, expect, fit } from '@jest/globals';
+import { describe, it, expect, fit, fdescribe } from '@jest/globals';
 import { NBaseInteger } from '../src/n-base/integer';
 
 describe('NBaseInteger.add', () => {
@@ -38,5 +38,50 @@ describe('NBaseInteger.add', () => {
     const a = NBaseInteger.from(1, 10);
     // @ts-expect-error
     expect(() => a.add('not a number')).toThrow();
+  });
+
+  it('should add positive and negative numbers correctly', () => {
+    const a = NBaseInteger.from(100, 10);
+    const b = NBaseInteger.from(-23, 10);
+    const c = a.add(b);
+    expect(c.toString()).toBe('77');
+    expect(a.toString()).toBe('100');
+    expect(b.toString()).toBe('-23');
+  });
+
+  it('should add negative and positive numbers correctly', () => {
+    const a = NBaseInteger.from(-100, 10);
+    const b = NBaseInteger.from(44, 10);
+    const c = a.add(b);
+    expect(c.toString()).toBe('-56');
+    expect(a.toString()).toBe('-100');
+    expect(b.toString()).toBe('44');
+  });
+
+  it('should add two negative numbers correctly', () => {
+    const a = NBaseInteger.from(-50, 10);
+    const b = NBaseInteger.from(-25, 10);
+    const c = a.add(b);
+    expect(c.toString()).toBe('-75');
+    expect(a.toString()).toBe('-50');
+    expect(b.toString()).toBe('-25');
+  });
+
+  it('should add zero to a positive number', () => {
+    const a = NBaseInteger.from(42, 10);
+    const b = NBaseInteger.from(0, 10);
+    const c = a.add(b);
+    expect(c.toString()).toBe('42');
+    expect(a.toString()).toBe('42');
+    expect(b.toString()).toBe('0');
+  });
+
+  it('should add zero to a negative number', () => {
+    const a = NBaseInteger.from(-42, 10);
+    const b = NBaseInteger.from(0, 10);
+    const c = a.add(b);
+    expect(c.toString()).toBe('-42');
+    expect(a.toString()).toBe('-42');
+    expect(b.toString()).toBe('0');
   });
 });
