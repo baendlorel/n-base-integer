@@ -1,1 +1,1 @@
-export { NBaseInteger } from './n-base-integer';
+export { NBaseInteger } from './n-base/integer';

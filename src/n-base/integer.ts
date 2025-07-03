@@ -68,11 +68,7 @@ export class NBaseInteger {
 
   // # Calculation, Ensure a.base === b.base and then call this
 
-  private expectAnother(
-    arg: number | NBaseInteger,
-    createANewOne: boolean,
-    priv: symbol
-  ): NBaseInteger {
+  private expectAnother(arg: number | NBaseInteger, clone: boolean, priv: symbol): NBaseInteger {
     protect(priv);
     if (typeof arg === 'number') {
       const n = safeInt(arg);
@@ -88,7 +84,7 @@ export class NBaseInteger {
         throw new TypeError(`Called with a ${NAME} with different charset.`);
       }
 
-      return createANewOne ? NBaseInteger.clone(nbi, flag) : nbi;
+      return clone ? NBaseInteger.clone(nbi, flag) : nbi;
     }
 
     throw new TypeError(`Called with an invalid argument. Expected number or ${NAME}.`);
@@ -128,6 +124,7 @@ export class NBaseInteger {
     }
   }
 
+  // # private vars
   private readonly charset: string;
 
   /**
@@ -137,9 +134,16 @@ export class NBaseInteger {
    */
   private readonly digits: number[];
 
+  private negative: boolean = false;
+
   constructor(n: number, charset: string, priv: symbol) {
     protect(priv, `The constructor of ${NAME} is protected, please use ${NAME}.from instead.`);
     this.charset = charset;
+
+    if (n < 0) {
+      n = -n;
+      this.negative = true;
+    }
 
     // creating
     const base = charset.length;
