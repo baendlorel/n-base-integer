@@ -103,10 +103,10 @@ describe('NBaseInteger.pow', () => {
   });
 
   it('should work for custom charset (base 5)', () => {
-    const charset = 'abcde';
+    const charset = '01234';
     const a = NBaseInteger.from(4, charset); // '4'
-    const b = NBaseInteger.from(3, charset); // '3'
-    expect(NBaseInteger.pow(a, b).toString()).toBe('31'); // 4^3=64, base5: '31'
+    const b = NBaseInteger.from(6, charset); // '6'
+    expect(NBaseInteger.pow(a, b).toString()).toBe('1123411'); // 4^3=64, base5: '31'
   });
 
   it('should throw for negative exponent (again)', () => {

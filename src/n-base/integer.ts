@@ -125,11 +125,19 @@ export class NBaseInteger {
   }
 
   get isOdd(): boolean {
-    return this.#digits[0] % 2 === 1;
+    if (this.#digits.length === 1) {
+      return this.#digits[0] % 2 === 1;
+    } else {
+      return (this.#digits[0] + this.#digits[1]) % 2 === 1;
+    }
   }
 
   get isEven(): boolean {
-    return this.#digits[0] % 2 === 0;
+    if (this.#digits.length === 1) {
+      return this.#digits[0] % 2 === 0;
+    } else {
+      return (this.#digits[0] + this.#digits[1]) % 2 === 0;
+    }
   }
 
   get sign(): -1 | 1 {
@@ -366,6 +374,50 @@ export class NBaseInteger {
   // #endregion
 
   // #region division
+  static div2(a: NBaseInteger): NBaseIntegerDivResult {
+    if (a.isZero) {
+      return {
+        quotient: new NBaseInteger(flag, 0, a.#base, a.#charset),
+        remainder: new NBaseInteger(flag, 0, a.#base, a.#charset),
+      };
+    }
+
+    // create a new NBaseInteger for the result
+    const ad = a.#digits as readonly number[];
+    const base = a.base;
+
+    // simple situations
+    if (ad.length === 1) {
+      const v = Math.floor(ad[0] / 2);
+      const r = ad[0] - v * 2;
+      return {
+        quotient: new NBaseInteger(flag, v, a.#base, a.#charset),
+        remainder: new NBaseInteger(flag, r, a.#base, a.#charset),
+      };
+    }
+
+    const quotient = new NBaseInteger(flag, 0, a.#base, a.#charset);
+    // divide by 2
+    let carry = 0;
+    for (let i = ad.length - 1; i >= 0; i--) {
+      const dividend = ad[i] + carry * base;
+      const q = Math.floor(dividend / 2);
+      carry = dividend - q * 2;
+      quotient.#digits.unshift(q);
+    }
+    const remainder = new NBaseInteger(flag, carry, a.#base, a.#charset);
+
+    // purge the zeros
+    for (let i = quotient.#digits.length - 1; i >= 0; i--) {
+      if (quotient.#digits[i] !== 0) {
+        quotient.#digits.length = i + 1; // truncate the array
+        return { quotient, remainder };
+      }
+    }
+    quotient.#digits.length = 1; // if all digits are zero, set to 0
+    return { quotient, remainder };
+  }
+
   /**
    * a / b = q ... r
    */
@@ -482,16 +534,31 @@ export class NBaseInteger {
     const pow = (ed: number[]): NBaseInteger => {
       const res = new NBaseInteger(flag, 1, a.#base, a.#charset);
 
-      if (ed.length === 1 && ed[0] === 0) {
-        return res;
+      // ed = 0, return 1
+      if (ed.length === 1) {
+        switch (ed[0]) {
+          case 0:
+            return res;
+          case 1:
+            return res.mulAssgin(a);
+          case 2:
+            return res.mulAssgin(a).mulAssgin(a);
+          case 3:
+            return res.mulAssgin(a).mulAssgin(a).mulAssgin(a);
+          default:
+            break;
+        }
       }
+
       // ed is even now an can be divided by 2
       ed = ed.slice();
       if (ed[0] % 2 === 1) {
         res.#digits = a.#digits.slice(); // res = a
         ed[0]--;
       }
+
       let carry = 0;
+      console.log('before ed', ed);
       for (let i = ed.length - 1; i >= 0; i--) {
         ed[i] += carry * a.#base;
         if (ed[i] % 2 === 1) {
@@ -508,8 +575,9 @@ export class NBaseInteger {
           return res;
         }
       }
-      console.log(ed.toReversed().join(''));
+      console.log('after ed', ed);
       const v = pow(ed);
+      console.log(v.toString());
       return res.mulAssgin(v).mulAssgin(v);
     };
     const res = pow(b.#digits);
