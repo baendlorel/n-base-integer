@@ -1,5 +1,7 @@
 import { NAME, Ordering, flag, protect } from './common';
 
+const MAX_BASE = 1000; // Maximum base supported by the default charset
+
 const safeInt = (n: number) => {
   if (!Number.isSafeInteger(n)) {
     throw new TypeError(`The method is not called with a safe integer, got ${n}.`);
@@ -79,6 +81,9 @@ export class NBaseInteger {
    */
   static set charset(charset: string) {
     charset = safeCharset(charset);
+    if (charset.length > MAX_BASE) {
+      throw new RangeError(`Default charset length should less than ${MAX_BASE}.`);
+    }
     ns.splice(0);
     ns.push(...createNs(charset));
   }
@@ -170,7 +175,8 @@ export class NBaseInteger {
     return this.negative ? -1 : 1;
   }
 
-  // # Calculation, Ensure bases and charsets are same, then call this
+  // # Calculations. Ensure bases and charsets are same, then call this
+  // #region add
   /**
    * Add a to b in place.
    * @param priv Internal symbol for access control.
@@ -298,7 +304,7 @@ export class NBaseInteger {
   sub(n: number): NBaseInteger;
   sub(arg: number | NBaseInteger): NBaseInteger {
     const other = NBaseInteger.clone(flag, this.safeOther(flag, arg));
-    other.opp();
+    other.oppAssign();
     NBaseInteger.addAToB(flag, this, other);
     return other;
   }
@@ -307,26 +313,56 @@ export class NBaseInteger {
   subAssign(n: number): NBaseInteger;
   subAssign(arg: number | NBaseInteger): NBaseInteger {
     const other = this.safeOther(flag, arg);
-    other.opp();
+    other.oppAssign();
     NBaseInteger.addAToB(flag, other, this);
-    other.opp();
+    other.oppAssign();
+    return this;
+  }
+  // #endregion
+
+  // #region multiply
+  mul(nbi: NBaseInteger): NBaseInteger;
+  mul(n: number): NBaseInteger;
+  mul(arg: number | NBaseInteger): NBaseInteger {}
+  // #endregion
+
+  // #region signs
+  oppAssign() {
+    this.negative = !this.negative;
     return this;
   }
 
-  // # signs
+  negAssign() {
+    this.negative = true;
+    return this;
+  }
+
+  posAssign() {
+    this.negative = false;
+    return this;
+  }
+
   opp() {
-    this.negative = !this.negative;
+    const b = NBaseInteger.clone(flag, this);
+    b.negative = !b.negative;
+    return b;
   }
 
   neg() {
-    this.negative = true;
+    const b = NBaseInteger.clone(flag, this);
+    b.negative = true;
+    return b;
   }
 
   pos() {
     this.negative = false;
+    const b = NBaseInteger.clone(flag, this);
+    b.negative = false;
+    return b;
   }
+  // #endregion
 
-  // # comparisons
+  // #region comparisons
   /**
    * Compare two NBaseInteger instances.
    * @param priv Internal symbol for access control.
@@ -484,8 +520,13 @@ export class NBaseInteger {
     const o = this.cmpAbs(flag, arg);
     return o === Ordering.Less || o === Ordering.Equal;
   }
+  // #endregion
 
   // # others
+  clone() {
+    return NBaseInteger.clone(flag, this);
+  }
+
   toString(): string {
     const abs = this.digits
       .map((digit) => this.ns.charset[digit])
