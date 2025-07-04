@@ -176,7 +176,7 @@ export class NBaseInteger {
   }
 
   // # Calculations. Ensure bases and charsets are same, then call this
-  // #region add
+  // #region add/sub
   /**
    * Add a to b in place.
    * @param priv Internal symbol for access control.
@@ -321,9 +321,54 @@ export class NBaseInteger {
   // #endregion
 
   // #region multiply
+  private static mulAToB(priv: symbol, a: NBaseInteger, b: NBaseInteger): void {
+    protect(priv);
+    const ad = a.digits.slice();
+    const bd = b.digits; // because b will change, there is no need to slice.
+    const base = a.base;
+    let max = ad.length;
+    // fill empty parts
+    if (ad.length > bd.length) {
+      bd.fill(0, bd.length, max);
+      while (bd.length < max) {
+        bd.push(0);
+      }
+    } else {
+      max = bd.length;
+      while (ad.length < max) {
+        ad.push(0);
+      }
+    }
+
+    // same sign -> positive
+    b.negative = a.negative !== b.negative;
+    let carry = 0;
+    for (let i = 0; i < max; i++) {
+      const v = ad[i] * bd[i] + carry;
+      bd[i] = v % base; // store the result in b
+      carry = Math.floor(v / base); // calculate the carry
+    }
+    if (carry > 0) {
+      bd.push(carry);
+    }
+    return;
+  }
+
   mul(nbi: NBaseInteger): NBaseInteger;
   mul(n: number): NBaseInteger;
-  mul(arg: number | NBaseInteger): NBaseInteger {}
+  mul(arg: number | NBaseInteger): NBaseInteger {
+    const other = NBaseInteger.clone(flag, this.safeOther(flag, arg));
+    NBaseInteger.mulAToB(flag, this, other);
+    return other;
+  }
+
+  mulAssgin(nbi: NBaseInteger): NBaseInteger;
+  mulAssgin(n: number): NBaseInteger;
+  mulAssgin(arg: number | NBaseInteger): NBaseInteger {
+    const other = this.safeOther(flag, arg);
+    NBaseInteger.mulAToB(flag, other, this);
+    return other;
+  }
   // #endregion
 
   // #region signs
