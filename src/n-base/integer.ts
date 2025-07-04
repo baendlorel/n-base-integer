@@ -1,40 +1,7 @@
-import { NAME, Ordering, flag, protect } from './common';
+import { NAME, Ordering, charsets } from './common';
+import { flag, protect, safeCharset, safeInt } from './expect';
 
 const MAX_BASE = 1000; // Maximum base supported by the default charset
-
-const safeInt = (n: number) => {
-  if (!Number.isSafeInteger(n)) {
-    throw new TypeError(`The method is not called with a safe integer, got ${n}.`);
-  }
-  return n;
-};
-
-const safeCharset = (charset: string) => {
-  if (charset.length < 2) {
-    throw new RangeError(`Charset must contain at least 2 characters.`);
-  }
-  const deduped = new Set(charset.split(''));
-  if (charset.length !== deduped.size) {
-    throw new RangeError(`Given charset contains duplicate characters.`);
-  }
-  return charset;
-};
-
-const createNs = (charset: string) =>
-  Array.from({ length: charset.length }, (_, i) => ({
-    charset: charset.substring(0, i + 1),
-    base: i + 1,
-  }));
-
-/**
- * Numerical System
- */
-const ns = createNs('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz');
-
-interface NS {
-  charset: string;
-  base: number;
-}
 
 interface NBaseIntegerDivResult {
   quotient: NBaseInteger;
@@ -57,18 +24,19 @@ export class NBaseInteger {
       if (base <= 1) {
         throw new RangeError(`Base must >= 1.`);
       }
-      if (base > ns.length) {
+      const dc = charsets.default;
+      if (base > dc.length) {
         throw new RangeError(
-          `Given base > ${ns.length}. Default charset is not enough, either set it or specify another charset.`
+          `Given base > ${dc.length}. Default charset is not enough, either set it or specify another charset.`
         );
       }
-      return new NBaseInteger(n, ns[base - 1], flag);
+      return new NBaseInteger(flag, n, base, dc);
     }
 
     // create with custom charset
     if (typeof arg === 'string') {
       const charset = safeCharset(arg);
-      return new NBaseInteger(n, { charset, base: charset.length }, flag);
+      return new NBaseInteger(flag, n, charset.length, charsets.get(charset));
     }
 
     throw new TypeError('Expect 2nd parameter to be a base or a charset.');
@@ -78,7 +46,7 @@ export class NBaseInteger {
    * Get the default charset for NBaseInteger.
    */
   static get charset() {
-    return ns[ns.length - 1].charset;
+    return charsets.default.join('');
   }
 
   /**
@@ -89,8 +57,7 @@ export class NBaseInteger {
     if (charset.length > MAX_BASE) {
       throw new RangeError(`Default charset length should less than ${MAX_BASE}.`);
     }
-    ns.splice(0);
-    ns.push(...createNs(charset));
+    charsets.setDefault(charset);
   }
 
   /**
@@ -100,7 +67,7 @@ export class NBaseInteger {
    */
   private static clone(priv: symbol, a: NBaseInteger): NBaseInteger {
     protect(priv);
-    const clone = new NBaseInteger(a.sign, a.ns, flag);
+    const clone = new NBaseInteger(flag, a.sign, a.#base, a.#charset);
     clone.digits = a.digits.slice();
     return clone;
   }
@@ -117,7 +84,7 @@ export class NBaseInteger {
     // b is a normal number
     if (typeof arg === 'number') {
       const n = safeInt(arg);
-      return new NBaseInteger(n, this.ns, flag);
+      return new NBaseInteger(flag, n, this.#base, this.#charset);
     }
 
     // b is also an NBaseInteger
@@ -126,7 +93,7 @@ export class NBaseInteger {
       if (nbi.base !== this.base) {
         throw new TypeError(`Called with a ${NAME} with different base.`);
       }
-      if (nbi.ns.charset !== this.ns.charset) {
+      if (nbi.charset !== this.charset) {
         throw new TypeError(`Called with a ${NAME} with different charset.`);
       }
       return nbi;
@@ -135,7 +102,8 @@ export class NBaseInteger {
   }
 
   // #region properties
-  private readonly ns: NS;
+  readonly #base: number;
+  readonly #charset: readonly string[];
 
   /**
    * digits[0] is the least significant digit (ones place),
@@ -147,11 +115,11 @@ export class NBaseInteger {
   private negative = false;
 
   get base(): number {
-    return this.ns.base;
+    return this.#base;
   }
 
   get charset(): string {
-    return this.ns.charset;
+    return this.#charset.join('');
   }
 
   get isZero(): boolean {
@@ -164,15 +132,23 @@ export class NBaseInteger {
   // #endregion
 
   // #region constructor
-  constructor(n: number, ns: NS, priv: symbol) {
+  constructor(priv: symbol, n: number, base: number, charset: readonly string[]) {
     protect(priv, `The constructor of ${NAME} is protected, please use ${NAME}.from instead.`);
-    this.ns = ns;
+
+    // assign essential properties
+    this.#base = base;
+    this.#charset = charset;
     if (n < 0) {
       n = -n;
       this.negative = true;
     }
+
+    if (n < base) {
+      this.digits = [n];
+      return;
+    }
+
     // creating
-    const base = this.ns.charset.length;
     this.digits = [];
     do {
       this.digits.push(n % base);
@@ -364,7 +340,7 @@ export class NBaseInteger {
         return b;
       }
     }
-    bd.length = 1; // if all digits are zero, set to 0
+    bd.length = 1;
     return b;
   }
 
@@ -393,7 +369,9 @@ export class NBaseInteger {
       throw new RangeError('Division by zero');
     }
 
-    const result = { quotient: b, remainder: new NBaseInteger(0, a.ns, flag) };
+    console.log(`${a.toString()} / ${b.toString()}`);
+
+    const result = { quotient: b, remainder: new NBaseInteger(flag, 0, a.#base, a.#charset) };
 
     // div abs
     const ad = a.digits.slice();
@@ -419,63 +397,14 @@ export class NBaseInteger {
     }
 
     // & Deal |a| > |b| here
-    const quo: number[] = [];
-    let remainder: number[] = ad.slice().reverse(); // 高位在前
-    const divisor = bd.slice().reverse();
-    for (let i = remainder.length - divisor.length; i >= 0; i--) {
-      // 取当前高位部分
-      let part = remainder.slice(i, i + divisor.length);
-      // 补齐高位
-      while (part.length < divisor.length) part.unshift(0);
-      // 估算当前位商
-      let q = 0;
-      // 朴素试商法
-      while (true) {
-        let borrow = 0,
-          canSub = true;
-        for (let j = divisor.length - 1; j >= 0; j--) {
-          const idx = j;
-          const v = part[idx] - divisor[j] - borrow;
-          if (v < 0) {
-            canSub = false;
-            break;
-          }
-          borrow = 0;
-        }
-        if (!canSub) break;
-        // part -= divisor
-        borrow = 0;
-        for (let j = divisor.length - 1; j >= 0; j--) {
-          const idx = j;
-          let v = part[idx] - divisor[j] - borrow;
-          if (v < 0) {
-            v += base;
-            borrow = 1;
-          } else {
-            borrow = 0;
-          }
-          part[idx] = v;
-        }
-        q++;
-      }
-      quo.unshift(q);
-      // 更新remainder
-      for (let j = 0; j < divisor.length; j++) {
-        remainder[i + j] = part[j];
-      }
-      result.quotient.negative = resultNegative;
-      result.quotient.digits = quo;
-      result.remainder.digits = remainder.reverse();
-    }
 
-    // 去除前导零
-    while (quo.length > 1 && quo[quo.length - 1] === 0) quo.pop();
-    b.digits.length = 0;
-    for (let i = 0; i < quo.length; i++) b.digits[i] = quo[i];
-    // 处理符号
-    b.negative = a.negative !== b.negative;
-    // 0永远是正数
-    if (b.digits.length === 1 && b.digits[0] === 0) b.negative = false;
+    for (let i = b.digits.length - 1; i >= 0; i--) {
+      if (b.digits[i] !== 0) {
+        b.digits.length = i + 1; // truncate the array
+        return result;
+      }
+    }
+    b.digits.length = 1;
     return result;
   }
 
@@ -710,7 +639,7 @@ export class NBaseInteger {
 
   toString(): string {
     const abs = this.digits
-      .map((digit) => this.ns.charset[digit])
+      .map((digit) => this.charset[digit])
       .reverse()
       .join('');
     return `${this.negative ? '-' : ''}${abs}`;
