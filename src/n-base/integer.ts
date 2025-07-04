@@ -124,6 +124,14 @@ export class NBaseInteger {
     return this.#digits.length === 1 && this.#digits[0] === 0;
   }
 
+  get isOdd(): boolean {
+    return this.#digits[0] % 2 === 1;
+  }
+
+  get isEven(): boolean {
+    return this.#digits[0] % 2 === 0;
+  }
+
   get sign(): -1 | 1 {
     return this.#negative ? -1 : 1;
   }
@@ -377,6 +385,7 @@ export class NBaseInteger {
     const base = a.base;
     const resultNegative = a.#negative !== b.#negative;
 
+    // simple situations
     switch (NBaseInteger.compareAbs(priv, a, b)) {
       case Ordering.Equal:
         b.#negative = resultNegative;
@@ -395,10 +404,26 @@ export class NBaseInteger {
     }
 
     // & Deal |a| > |b| here
+    // approximate the quotient first
+    const bq = bd.length + Math.log(bd[bd.length - 1]) / Math.log(base);
 
+    let aq = 0;
+    const logdiv = (arr: number[], base: number) => {
+      const x = Math.floor(arr.length + Math.log(ad[arr.length - 1]) / Math.log(base));
+      const y = base ** x;
+    };
+
+    let x = ad.length;
+    for (let i = ad.length - 1; i >= 0; i--) {
+      x += Math.log(ad[i]) / Math.log(base);
+    }
+    const delta = base ** (x - bq);
+    console.log('delta', delta, 'approximated quotient', base ** delta);
+
+    // purge zeros
     for (let i = b.#digits.length - 1; i >= 0; i--) {
       if (b.#digits[i] !== 0) {
-        b.#digits.length = i + 1; // truncate the array
+        b.#digits.length = i + 1;
         return result;
       }
     }
@@ -433,6 +458,59 @@ export class NBaseInteger {
     return result.remainder;
   }
 
+  // #endregion
+
+  // #region power
+  /**
+   * Calculate a^b.
+   * @param a The base.
+   * @param b The exponent.
+   */
+  static pow(a: NBaseInteger, b: NBaseInteger): NBaseInteger {
+    if (b.#negative) {
+      throw new RangeError('Exponent must be non-negative.');
+    }
+    if (b.isZero) {
+      return new NBaseInteger(flag, 1, a.#base, a.#charset); // a^0 = 1
+    }
+    if (a.isZero) {
+      return new NBaseInteger(flag, 0, a.#base, a.#charset); // a^0 = 1
+    }
+
+    // calculate
+    const result = new NBaseInteger(flag, 1, a.#base, a.#charset);
+    const exponent = NBaseInteger.clone(flag, b);
+    const pow = (ed: number[]): NBaseInteger => {
+      const res = new NBaseInteger(flag, 1, a.#base, a.#charset);
+      if (ed.length === 1 && ed[0] === 0) {
+        return res;
+      }
+      if (ed[0] % 2 === 1) {
+        res.#digits = a.#digits.slice(); // res = a
+        ed[0]--;
+      }
+      // ed is even now an can be divided by 2
+      ed = ed.slice();
+      let carry = 0;
+      for (let i = ed.length - 1; i >= 0; i--) {
+        ed[i] += carry * a.#base;
+        if (ed[i] % 2 === 1) {
+          ed[i]--; // make it even
+          carry = 1;
+        } else {
+          carry = 0;
+        }
+        ed[i] /= 2;
+      }
+      if (ed[ed.length - 1] === 0) {
+        ed.pop(); // remove the last zero if exists
+      }
+      const v = pow(ed);
+      return v.mul(v);
+    };
+
+    return result;
+  }
   // #endregion
 
   // #region signs
