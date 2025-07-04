@@ -324,12 +324,12 @@ export class NBaseInteger {
 
     // same sign -> positive
     b.negative = a.negative !== b.negative;
-    const result: number[][] = [];
+    const rows: number[][] = [];
     let maxRowLen = 0;
     for (let i = 0; i < ad.length; i++) {
       const row: number[] = new Array(i); // create a row for the result
       row.fill(0); // fill with zeros
-      result.push(row);
+      rows.push(row);
       let carry = 0;
       for (let j = 0; j < bd.length; j++) {
         const v = ad[i] * bd[j] + carry;
@@ -343,17 +343,22 @@ export class NBaseInteger {
     }
 
     // add all rows together
-    for (let i = 0; i < maxRowLen; i++) {
+    {
       let carry = 0;
-      let v = 0;
-      for (let j = 0; j < result.length; j++) {
-        v += result[j][i] ?? 0;
+      for (let i = 0; i < maxRowLen; i++) {
+        let v = carry;
+        for (let j = 0; j < rows.length; j++) {
+          v += rows[j][i] ?? 0;
+        }
+        if (v >= base) {
+          carry = Math.floor(v / base);
+          bd[i] = v % base;
+        } else {
+          bd[i] = v;
+        }
       }
-      if (v >= base) {
-        carry = Math.floor(v / base);
-        bd[i] = v % base;
-      } else {
-        bd[i] = v;
+      if (carry > 0) {
+        bd.push(carry);
       }
     }
 
