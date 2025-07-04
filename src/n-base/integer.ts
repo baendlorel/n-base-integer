@@ -463,6 +463,7 @@ export class NBaseInteger {
   // #region power
   /**
    * Calculate a^b.
+   * - 0^0 is considered as 1
    * @param a The base.
    * @param b The exponent.
    */
@@ -478,19 +479,18 @@ export class NBaseInteger {
     }
 
     // calculate
-    const result = new NBaseInteger(flag, 1, a.#base, a.#charset);
-    const exponent = NBaseInteger.clone(flag, b);
     const pow = (ed: number[]): NBaseInteger => {
       const res = new NBaseInteger(flag, 1, a.#base, a.#charset);
+
       if (ed.length === 1 && ed[0] === 0) {
         return res;
       }
+      // ed is even now an can be divided by 2
+      ed = ed.slice();
       if (ed[0] % 2 === 1) {
         res.#digits = a.#digits.slice(); // res = a
         ed[0]--;
       }
-      // ed is even now an can be divided by 2
-      ed = ed.slice();
       let carry = 0;
       for (let i = ed.length - 1; i >= 0; i--) {
         ed[i] += carry * a.#base;
@@ -503,13 +503,18 @@ export class NBaseInteger {
         ed[i] /= 2;
       }
       if (ed[ed.length - 1] === 0) {
-        ed.pop(); // remove the last zero if exists
+        ed.pop();
+        if (ed.length === 0) {
+          return res;
+        }
       }
+      console.log(ed.toReversed().join(''));
       const v = pow(ed);
-      return v.mul(v);
+      return res.mulAssgin(v).mulAssgin(v);
     };
-
-    return result;
+    const res = pow(b.#digits);
+    res.#negative = a.#negative && b.isOdd;
+    return res;
   }
   // #endregion
 
