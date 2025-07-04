@@ -224,21 +224,21 @@ export class NBaseInteger {
     // now a b has different signs, we need to judge the sign first
     // only `greater - less` can be calculated
     switch (NBaseInteger.compareAbs(priv, a, b)) {
-      case Ordering.Equal: // means a = -b, then a + b = 0
+      case Ordering.Equal:
+        // & means a = -b, then a + b = 0
         {
           b.digits.length = 1; // clear b
           b.digits[0] = 0;
           b.negative = false; // set sign to positive
         }
-        return;
-      case Ordering.Greater: // means |a| > |b|, then a + b = sgn(a)(|a| - |b|)
+        break; // no need to purge zeros
+      case Ordering.Greater:
+        // & means |a| > |b|, then a + b = sgn(a)(|a| - |b|)
         {
           b.negative = a.negative; // |a| is greater, so sign must be same as a
           let carry = 0;
           for (let i = 0; i < max; i++) {
-            // console.log('before add', a.toString(), b.toString());
             const v = ad[i] - bd[i] - carry;
-            // console.log('v', v, 'ai', ad[i], 'bi', bd[i], 'carry', carry);
             if (v < 0) {
               carry = 1;
               bd[i] = v + base;
@@ -246,19 +246,12 @@ export class NBaseInteger {
               carry = 0;
               bd[i] = v;
             }
-            // console.log('after add', a.toString(), b.toString());
           }
           // greater - less, last carry is definitly 0.
-          // purge the zeros
-          for (let i = bd.length - 1; i >= 0; i--) {
-            if (bd[i] !== 0) {
-              bd.length = i + 1; // truncate the array
-              break;
-            }
-          }
         }
-        return;
-      case Ordering.Less: // means |b| > |a|, then a + b = sgn(b)(|b| - |a|)
+        break;
+      case Ordering.Less:
+        // & means |b| > |a|, then a + b = sgn(b)(|b| - |a|)
         {
           let carry = 0;
           for (let i = 0; i < max; i++) {
@@ -272,16 +265,18 @@ export class NBaseInteger {
             }
           }
           // greater - less, last carry is definitly 0.
-          // purge the zeros
-          for (let i = bd.length - 1; i >= 0; i--) {
-            if (bd[i] !== 0) {
-              bd.length = i + 1; // truncate the array
-              break;
-            }
-          }
         }
-        return;
+        break;
     }
+
+    // purge the zeros
+    for (let i = bd.length - 1; i >= 0; i--) {
+      if (bd[i] !== 0) {
+        bd.length = i + 1; // truncate the array
+        return;
+      }
+    }
+    bd.length = 1; // if all digits are zero, set to 0
   }
 
   add(nbi: NBaseInteger): NBaseInteger;
@@ -326,32 +321,50 @@ export class NBaseInteger {
     const ad = a.digits.slice();
     const bd = b.digits; // because b will change, there is no need to slice.
     const base = a.base;
-    let max = ad.length;
-    // fill empty parts
-    if (ad.length > bd.length) {
-      bd.fill(0, bd.length, max);
-      while (bd.length < max) {
-        bd.push(0);
-      }
-    } else {
-      max = bd.length;
-      while (ad.length < max) {
-        ad.push(0);
-      }
-    }
 
     // same sign -> positive
     b.negative = a.negative !== b.negative;
-    let carry = 0;
-    for (let i = 0; i < max; i++) {
-      const v = ad[i] * bd[i] + carry;
-      bd[i] = v % base; // store the result in b
-      carry = Math.floor(v / base); // calculate the carry
+    const result: number[][] = [];
+    let maxRowLen = 0;
+    for (let i = 0; i < ad.length; i++) {
+      const row: number[] = new Array(i); // create a row for the result
+      row.fill(0); // fill with zeros
+      result.push(row);
+      let carry = 0;
+      for (let j = 0; j < bd.length; j++) {
+        const v = ad[i] * bd[j] + carry;
+        row.push(v % base); // store the result in b
+        carry = Math.floor(v / base); // calculate the carry
+      }
+      if (carry > 0) {
+        row.push(carry);
+      }
+      maxRowLen = Math.max(maxRowLen, row.length);
     }
-    if (carry > 0) {
-      bd.push(carry);
+
+    // add all rows together
+    for (let i = 0; i < maxRowLen; i++) {
+      let carry = 0;
+      let v = 0;
+      for (let j = 0; j < result.length; j++) {
+        v += result[j][i] ?? 0;
+      }
+      if (v >= base) {
+        carry = Math.floor(v / base);
+        bd[i] = v % base;
+      } else {
+        bd[i] = v;
+      }
     }
-    return;
+
+    // purge the zeros
+    for (let i = bd.length - 1; i >= 0; i--) {
+      if (bd[i] !== 0) {
+        bd.length = i + 1; // truncate the array
+        return;
+      }
+    }
+    bd.length = 1; // if all digits are zero, set to 0
   }
 
   mul(nbi: NBaseInteger): NBaseInteger;
@@ -400,7 +413,6 @@ export class NBaseInteger {
   }
 
   pos() {
-    this.negative = false;
     const b = NBaseInteger.clone(flag, this);
     b.negative = false;
     return b;
