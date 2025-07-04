@@ -207,8 +207,17 @@ export class NBaseInteger {
       let carry = 0;
       for (let i = 0; i < max; i++) {
         const v = ad[i] + bd[i] + carry;
+
+        /**
+         * Through some tests, `v % base` and `v - carry * base` are almost equivalent.
+         * However `v - carry * base` always give positive result.
+         * So we use `v - carry * base` here
+         *
+         * @see https://github.com/baendlorel/ts-performance
+         * @see src/performance/modulo.ts
+         */
         carry = Math.floor(v / base);
-        bd[i] = v % base;
+        bd[i] = v - carry * base;
       }
       if (carry > 0) {
         bd.push(carry);
@@ -234,13 +243,8 @@ export class NBaseInteger {
           let carry = 0;
           for (let i = 0; i < max; i++) {
             const v = ad[i] - bd[i] + carry;
-            if (v < 0) {
-              carry = -1;
-              bd[i] = v + base;
-            } else {
-              carry = 0;
-              bd[i] = v;
-            }
+            carry = Math.floor(v / base);
+            bd[i] = v - carry * base;
           }
           // greater - less, last carry is definitly 0.
         }
@@ -251,13 +255,8 @@ export class NBaseInteger {
           let carry = 0;
           for (let i = 0; i < max; i++) {
             const v = bd[i] - ad[i] + carry;
-            if (v < 0) {
-              carry = -1;
-              bd[i] = v + base;
-            } else {
-              carry = 0;
-              bd[i] = v;
-            }
+            carry = Math.floor(v / base);
+            bd[i] = v - carry * base;
           }
           // greater - less, last carry is definitly 0.
         }
