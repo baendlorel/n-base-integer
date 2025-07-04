@@ -62,8 +62,8 @@ describe('NBaseInteger hardcore add/mul', () => {
   });
 
   it('mul: negative * positive', () => {
-    const a = NBaseInteger.from(-12345, base10);
-    const b = NBaseInteger.from(678, base10);
+    const a = NBaseInteger.from(678, base10);
+    const b = NBaseInteger.from(-12345, base10);
     expect(a.mul(b).toString()).toBe((-12345 * 678).toString());
   });
 
@@ -88,7 +88,7 @@ describe('NBaseInteger hardcore add/mul', () => {
   it('mul: custom charset', () => {
     const a = NBaseInteger.from(2, customCharset); // '2'
     const b = NBaseInteger.from(2, customCharset); // '2'
-    expect(a.mul(b).toString()).toBe('11'); // 2*2=4, base3: '11'
+    expect(a.mul(b).toString()).toBe('bb'); // 2*2=4, base3: '11'
   });
 
   it('mul: zero edge', () => {

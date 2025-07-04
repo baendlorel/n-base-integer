@@ -207,13 +207,8 @@ export class NBaseInteger {
       let carry = 0;
       for (let i = 0; i < max; i++) {
         const v = ad[i] + bd[i] + carry;
-        if (v >= base) {
-          carry = 1;
-          bd[i] = v - base;
-        } else {
-          carry = 0;
-          bd[i] = v;
-        }
+        carry = Math.floor(v / base);
+        bd[i] = v % base;
       }
       if (carry > 0) {
         bd.push(carry);
@@ -238,9 +233,9 @@ export class NBaseInteger {
           b.negative = a.negative; // |a| is greater, so sign must be same as a
           let carry = 0;
           for (let i = 0; i < max; i++) {
-            const v = ad[i] - bd[i] - carry;
+            const v = ad[i] - bd[i] + carry;
             if (v < 0) {
-              carry = 1;
+              carry = -1;
               bd[i] = v + base;
             } else {
               carry = 0;
@@ -255,10 +250,10 @@ export class NBaseInteger {
         {
           let carry = 0;
           for (let i = 0; i < max; i++) {
-            const v = bd[i] - ad[i] - carry;
+            const v = bd[i] - ad[i] + carry;
             if (v < 0) {
-              carry = 1;
-              bd[i] = v - base;
+              carry = -1;
+              bd[i] = v + base;
             } else {
               carry = 0;
               bd[i] = v;
@@ -331,8 +326,9 @@ export class NBaseInteger {
       row.fill(0); // fill with zeros
       rows.push(row);
       let carry = 0;
+      const ai = ad[i];
       for (let j = 0; j < bd.length; j++) {
-        const v = ad[i] * bd[j] + carry;
+        const v = ai * bd[j] + carry;
         row.push(v % base); // store the result in b
         carry = Math.floor(v / base); // calculate the carry
       }
@@ -350,12 +346,8 @@ export class NBaseInteger {
         for (let j = 0; j < rows.length; j++) {
           v += rows[j][i] ?? 0;
         }
-        if (v >= base) {
-          carry = Math.floor(v / base);
-          bd[i] = v % base;
-        } else {
-          bd[i] = v;
-        }
+        carry = Math.floor(v / base);
+        bd[i] = v % base;
       }
       if (carry > 0) {
         bd.push(carry);
