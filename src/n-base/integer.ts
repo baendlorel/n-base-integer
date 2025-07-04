@@ -68,7 +68,7 @@ export class NBaseInteger {
   private static clone(priv: symbol, a: NBaseInteger): NBaseInteger {
     protect(priv);
     const clone = new NBaseInteger(flag, a.sign, a.#base, a.#charset);
-    clone.digits = a.digits.slice();
+    clone.#digits = a.#digits.slice();
     return clone;
   }
 
@@ -105,14 +105,12 @@ export class NBaseInteger {
   readonly #base: number;
   readonly #charset: readonly string[];
 
-  /**
-   * digits[0] is the least significant digit (ones place),
-   * digits[1] is the next higher place, and so on.
-   * The array extends from the ones place upwards.
-   */
-  private digits: number[];
+  #digits: number[];
 
-  private negative = false;
+  /**
+   * Note zero is positive
+   */
+  #negative = false;
 
   get base(): number {
     return this.#base;
@@ -123,11 +121,11 @@ export class NBaseInteger {
   }
 
   get isZero(): boolean {
-    return this.digits.length === 1 && this.digits[0] === 0;
+    return this.#digits.length === 1 && this.#digits[0] === 0;
   }
 
   get sign(): -1 | 1 {
-    return this.negative ? -1 : 1;
+    return this.#negative ? -1 : 1;
   }
   // #endregion
 
@@ -140,18 +138,18 @@ export class NBaseInteger {
     this.#charset = charset;
     if (n < 0) {
       n = -n;
-      this.negative = true;
+      this.#negative = true;
     }
 
     if (n < base) {
-      this.digits = [n];
+      this.#digits = [n];
       return;
     }
 
     // creating
-    this.digits = [];
+    this.#digits = [];
     do {
-      this.digits.push(n % base);
+      this.#digits.push(n % base);
       n = Math.floor(n / base);
     } while (n > 0);
   }
@@ -167,8 +165,8 @@ export class NBaseInteger {
    */
   private static addAToB(priv: symbol, a: NBaseInteger, b: NBaseInteger): NBaseInteger {
     protect(priv);
-    const ad = a.digits.slice();
-    const bd = b.digits; // because b will change, there is no need to slice.
+    const ad = a.#digits.slice();
+    const bd = b.#digits; // because b will change, there is no need to slice.
     const base = a.base;
     let max = ad.length;
     // fill empty parts
@@ -185,7 +183,7 @@ export class NBaseInteger {
     }
 
     // same sign, add them directly
-    if (a.negative === b.negative) {
+    if (a.#negative === b.#negative) {
       let carry = 0;
       for (let i = 0; i < max; i++) {
         const v = ad[i] + bd[i] + carry;
@@ -213,15 +211,15 @@ export class NBaseInteger {
       case Ordering.Equal:
         // & means a = -b, then a + b = 0
         {
-          b.digits.length = 1; // clear b
-          b.digits[0] = 0;
-          b.negative = false; // set sign to positive
+          b.#digits.length = 1; // clear b
+          b.#digits[0] = 0;
+          b.#negative = false; // set sign to positive
         }
         break; // no need to purge zeros
       case Ordering.Greater:
         // & means |a| > |b|, then a + b = sgn(a)(|a| - |b|)
         {
-          b.negative = a.negative; // |a| is greater, so sign must be same as a
+          b.#negative = a.#negative; // |a| is greater, so sign must be same as a
           let carry = 0;
           for (let i = 0; i < max; i++) {
             const v = ad[i] - bd[i] + carry;
@@ -292,12 +290,12 @@ export class NBaseInteger {
   // #region multiply
   private static mulAToB(priv: symbol, a: NBaseInteger, b: NBaseInteger): NBaseInteger {
     protect(priv);
-    const ad = a.digits.slice();
-    const bd = b.digits; // because b will change, there is no need to slice.
+    const ad = a.#digits.slice();
+    const bd = b.#digits; // because b will change, there is no need to slice.
     const base = a.base;
 
     // same sign -> positive
-    b.negative = a.negative !== b.negative;
+    b.#negative = a.#negative !== b.#negative;
     const rows: number[][] = [];
     let maxRowLen = 0;
     for (let i = 0; i < ad.length; i++) {
@@ -374,23 +372,23 @@ export class NBaseInteger {
     const result = { quotient: b, remainder: new NBaseInteger(flag, 0, a.#base, a.#charset) };
 
     // div abs
-    const ad = a.digits.slice();
-    const bd = b.digits;
+    const ad = a.#digits.slice();
+    const bd = b.#digits;
     const base = a.base;
-    const resultNegative = a.negative !== b.negative;
+    const resultNegative = a.#negative !== b.#negative;
 
     switch (NBaseInteger.compareAbs(priv, a, b)) {
       case Ordering.Equal:
-        b.negative = resultNegative;
+        b.#negative = resultNegative;
         bd.length = 1;
         bd[0] = 1;
         return result;
       case Ordering.Less:
         // & |a| < |b|, then a / b = 0, r = a
-        b.negative = resultNegative;
-        b.digits.length = 1;
+        b.#negative = resultNegative;
+        b.#digits.length = 1;
         bd[0] = 0;
-        result.remainder.digits = a.digits.slice();
+        result.remainder.#digits = a.#digits.slice();
         return result;
       default:
         break;
@@ -398,13 +396,13 @@ export class NBaseInteger {
 
     // & Deal |a| > |b| here
 
-    for (let i = b.digits.length - 1; i >= 0; i--) {
-      if (b.digits[i] !== 0) {
-        b.digits.length = i + 1; // truncate the array
+    for (let i = b.#digits.length - 1; i >= 0; i--) {
+      if (b.#digits[i] !== 0) {
+        b.#digits.length = i + 1; // truncate the array
         return result;
       }
     }
-    b.digits.length = 1;
+    b.#digits.length = 1;
     return result;
   }
 
@@ -439,35 +437,35 @@ export class NBaseInteger {
 
   // #region signs
   oppAssign() {
-    this.negative = !this.negative;
+    this.#negative = !this.#negative;
     return this;
   }
 
   negAssign() {
-    this.negative = true;
+    this.#negative = true;
     return this;
   }
 
   posAssign() {
-    this.negative = false;
+    this.#negative = false;
     return this;
   }
 
   opp() {
     const b = NBaseInteger.clone(flag, this);
-    b.negative = !b.negative;
+    b.#negative = !b.#negative;
     return b;
   }
 
   neg() {
     const b = NBaseInteger.clone(flag, this);
-    b.negative = true;
+    b.#negative = true;
     return b;
   }
 
   pos() {
     const b = NBaseInteger.clone(flag, this);
-    b.negative = false;
+    b.#negative = false;
     return b;
   }
   // #endregion
@@ -487,19 +485,19 @@ export class NBaseInteger {
     if (a.isZero && b.isZero) {
       return Ordering.Equal;
     }
-    if (a.negative !== b.negative) {
-      return a.negative ? Ordering.Less : Ordering.Greater;
+    if (a.#negative !== b.#negative) {
+      return a.#negative ? Ordering.Less : Ordering.Greater;
     }
-    const ad = a.digits;
-    const bd = b.digits;
+    const ad = a.#digits;
+    const bd = b.#digits;
     if (ad.length !== bd.length) {
-      if (a.negative) {
+      if (a.#negative) {
         return ad.length < bd.length ? Ordering.Greater : Ordering.Less;
       } else {
         return ad.length > bd.length ? Ordering.Greater : Ordering.Less;
       }
     }
-    if (a.negative) {
+    if (a.#negative) {
       for (let i = ad.length - 1; i >= 0; i--) {
         if (ad[i] !== bd[i]) {
           return ad[i] < bd[i] ? Ordering.Greater : Ordering.Less;
@@ -520,8 +518,8 @@ export class NBaseInteger {
     if (a === b) {
       return Ordering.Equal;
     }
-    const ad = a.digits;
-    const bd = b.digits;
+    const ad = a.#digits;
+    const bd = b.#digits;
     if (ad.length !== bd.length) {
       return ad.length > bd.length ? Ordering.Greater : Ordering.Less;
     }
@@ -638,10 +636,10 @@ export class NBaseInteger {
   }
 
   toString(): string {
-    const abs = this.digits
+    const abs = this.#digits
       .map((digit) => this.charset[digit])
       .reverse()
       .join('');
-    return `${this.negative ? '-' : ''}${abs}`;
+    return `${this.#negative ? '-' : ''}${abs}`;
   }
 }
