@@ -36,6 +36,11 @@ interface NS {
   base: number;
 }
 
+interface NBaseIntegerDivResult {
+  quotient: NBaseInteger;
+  remainder: NBaseInteger;
+}
+
 /**
  * NBase is a class for n-base numeral system
  */
@@ -96,9 +101,7 @@ export class NBaseInteger {
   private static clone(priv: symbol, a: NBaseInteger): NBaseInteger {
     protect(priv);
     const clone = new NBaseInteger(a.sign, a.ns, flag);
-    for (let i = 0; i < a.digits.length; i++) {
-      clone.digits[i] = a.digits[i];
-    }
+    clone.digits = a.digits.slice();
     return clone;
   }
 
@@ -131,7 +134,7 @@ export class NBaseInteger {
     throw new TypeError(`Called with an invalid argument. Expected number or ${NAME}.`);
   }
 
-  // # private vars
+  // #region properties
   private readonly ns: NS;
 
   /**
@@ -139,25 +142,9 @@ export class NBaseInteger {
    * digits[1] is the next higher place, and so on.
    * The array extends from the ones place upwards.
    */
-  private readonly digits: number[];
+  private digits: number[];
 
   private negative = false;
-
-  constructor(n: number, ns: NS, priv: symbol) {
-    protect(priv, `The constructor of ${NAME} is protected, please use ${NAME}.from instead.`);
-    this.ns = ns;
-    if (n < 0) {
-      n = -n;
-      this.negative = true;
-    }
-    // creating
-    const base = this.ns.charset.length;
-    this.digits = [];
-    do {
-      this.digits.push(n % base);
-      n = Math.floor(n / base);
-    } while (n > 0);
-  }
 
   get base(): number {
     return this.ns.base;
@@ -174,6 +161,25 @@ export class NBaseInteger {
   get sign(): -1 | 1 {
     return this.negative ? -1 : 1;
   }
+  // #endregion
+
+  // #region constructor
+  constructor(n: number, ns: NS, priv: symbol) {
+    protect(priv, `The constructor of ${NAME} is protected, please use ${NAME}.from instead.`);
+    this.ns = ns;
+    if (n < 0) {
+      n = -n;
+      this.negative = true;
+    }
+    // creating
+    const base = this.ns.charset.length;
+    this.digits = [];
+    do {
+      this.digits.push(n % base);
+      n = Math.floor(n / base);
+    } while (n > 0);
+  }
+  // #endregion
 
   // # Calculations. Ensure bases and charsets are same, then call this
   // #region add/sub
@@ -183,7 +189,7 @@ export class NBaseInteger {
    * @param a The first operand.
    * @param b The second operand (result stored here).
    */
-  private static addAToB(priv: symbol, a: NBaseInteger, b: NBaseInteger): void {
+  private static addAToB(priv: symbol, a: NBaseInteger, b: NBaseInteger): NBaseInteger {
     protect(priv);
     const ad = a.digits.slice();
     const bd = b.digits; // because b will change, there is no need to slice.
@@ -222,7 +228,7 @@ export class NBaseInteger {
       if (carry > 0) {
         bd.push(carry);
       }
-      return;
+      return b;
     }
 
     // now a b has different signs, we need to judge the sign first
@@ -267,26 +273,25 @@ export class NBaseInteger {
     for (let i = bd.length - 1; i >= 0; i--) {
       if (bd[i] !== 0) {
         bd.length = i + 1; // truncate the array
-        return;
+        return b;
       }
     }
     bd.length = 1; // if all digits are zero, set to 0
+    return b;
   }
 
   add(nbi: NBaseInteger): NBaseInteger;
   add(n: number): NBaseInteger;
   add(arg: number | NBaseInteger): NBaseInteger {
     const other = NBaseInteger.clone(flag, this.safeOther(flag, arg));
-    NBaseInteger.addAToB(flag, this, other);
-    return other;
+    return NBaseInteger.addAToB(flag, this, other);
   }
 
   addAssign(nbi: NBaseInteger): NBaseInteger;
   addAssign(n: number): NBaseInteger;
   addAssign(arg: number | NBaseInteger): NBaseInteger {
     const other = this.safeOther(flag, arg);
-    NBaseInteger.addAToB(flag, other, this);
-    return this;
+    return NBaseInteger.addAToB(flag, other, this);
   }
 
   sub(nbi: NBaseInteger): NBaseInteger;
@@ -294,8 +299,7 @@ export class NBaseInteger {
   sub(arg: number | NBaseInteger): NBaseInteger {
     const other = NBaseInteger.clone(flag, this.safeOther(flag, arg));
     other.oppAssign();
-    NBaseInteger.addAToB(flag, this, other);
-    return other;
+    return NBaseInteger.addAToB(flag, this, other);
   }
 
   subAssign(nbi: NBaseInteger): NBaseInteger;
@@ -310,7 +314,7 @@ export class NBaseInteger {
   // #endregion
 
   // #region multiply
-  private static mulAToB(priv: symbol, a: NBaseInteger, b: NBaseInteger): void {
+  private static mulAToB(priv: symbol, a: NBaseInteger, b: NBaseInteger): NBaseInteger {
     protect(priv);
     const ad = a.digits.slice();
     const bd = b.digits; // because b will change, there is no need to slice.
@@ -357,27 +361,151 @@ export class NBaseInteger {
     for (let i = bd.length - 1; i >= 0; i--) {
       if (bd[i] !== 0) {
         bd.length = i + 1; // truncate the array
-        return;
+        return b;
       }
     }
     bd.length = 1; // if all digits are zero, set to 0
+    return b;
   }
 
   mul(nbi: NBaseInteger): NBaseInteger;
   mul(n: number): NBaseInteger;
   mul(arg: number | NBaseInteger): NBaseInteger {
     const other = NBaseInteger.clone(flag, this.safeOther(flag, arg));
-    NBaseInteger.mulAToB(flag, this, other);
-    return other;
+    return NBaseInteger.mulAToB(flag, this, other);
   }
 
   mulAssgin(nbi: NBaseInteger): NBaseInteger;
   mulAssgin(n: number): NBaseInteger;
   mulAssgin(arg: number | NBaseInteger): NBaseInteger {
     const other = this.safeOther(flag, arg);
-    NBaseInteger.mulAToB(flag, other, this);
-    return other;
+    return NBaseInteger.mulAToB(flag, other, this);
   }
+  // #endregion
+
+  // #region division
+  /**
+   * a / b = q ... r
+   */
+  private static divAToB(priv: symbol, a: NBaseInteger, b: NBaseInteger): NBaseIntegerDivResult {
+    protect(priv);
+    if (b.isZero) {
+      throw new RangeError('Division by zero');
+    }
+
+    const result = { quotient: b, remainder: new NBaseInteger(0, a.ns, flag) };
+
+    // div abs
+    const ad = a.digits.slice();
+    const bd = b.digits;
+    const base = a.base;
+    const resultNegative = a.negative !== b.negative;
+
+    switch (NBaseInteger.compareAbs(priv, a, b)) {
+      case Ordering.Equal:
+        b.negative = resultNegative;
+        bd.length = 1;
+        bd[0] = 1;
+        return result;
+      case Ordering.Less:
+        // & |a| < |b|, then a / b = 0, r = a
+        b.negative = resultNegative;
+        b.digits.length = 1;
+        bd[0] = 0;
+        result.remainder.digits = a.digits.slice();
+        return result;
+      default:
+        break;
+    }
+
+    // & Deal |a| > |b| here
+    const quo: number[] = [];
+    let remainder: number[] = ad.slice().reverse(); // 高位在前
+    const divisor = bd.slice().reverse();
+    for (let i = remainder.length - divisor.length; i >= 0; i--) {
+      // 取当前高位部分
+      let part = remainder.slice(i, i + divisor.length);
+      // 补齐高位
+      while (part.length < divisor.length) part.unshift(0);
+      // 估算当前位商
+      let q = 0;
+      // 朴素试商法
+      while (true) {
+        let borrow = 0,
+          canSub = true;
+        for (let j = divisor.length - 1; j >= 0; j--) {
+          const idx = j;
+          const v = part[idx] - divisor[j] - borrow;
+          if (v < 0) {
+            canSub = false;
+            break;
+          }
+          borrow = 0;
+        }
+        if (!canSub) break;
+        // part -= divisor
+        borrow = 0;
+        for (let j = divisor.length - 1; j >= 0; j--) {
+          const idx = j;
+          let v = part[idx] - divisor[j] - borrow;
+          if (v < 0) {
+            v += base;
+            borrow = 1;
+          } else {
+            borrow = 0;
+          }
+          part[idx] = v;
+        }
+        q++;
+      }
+      quo.unshift(q);
+      // 更新remainder
+      for (let j = 0; j < divisor.length; j++) {
+        remainder[i + j] = part[j];
+      }
+      result.quotient.negative = resultNegative;
+      result.quotient.digits = quo;
+      result.remainder.digits = remainder.reverse();
+    }
+
+    // 去除前导零
+    while (quo.length > 1 && quo[quo.length - 1] === 0) quo.pop();
+    b.digits.length = 0;
+    for (let i = 0; i < quo.length; i++) b.digits[i] = quo[i];
+    // 处理符号
+    b.negative = a.negative !== b.negative;
+    // 0永远是正数
+    if (b.digits.length === 1 && b.digits[0] === 0) b.negative = false;
+    return result;
+  }
+
+  divmod(nbi: NBaseInteger): NBaseIntegerDivResult;
+  divmod(n: number): NBaseIntegerDivResult;
+  divmod(arg: number | NBaseInteger): NBaseIntegerDivResult {
+    const other = NBaseInteger.clone(flag, this.safeOther(flag, arg));
+    const result = NBaseInteger.divAToB(flag, this, other);
+    console.log(result);
+    return result;
+  }
+
+  div(nbi: NBaseInteger): NBaseInteger;
+  div(n: number): NBaseInteger;
+  div(arg: number | NBaseInteger): NBaseInteger {
+    const other = NBaseInteger.clone(flag, this.safeOther(flag, arg));
+    const result = NBaseInteger.divAToB(flag, this, other);
+    console.log(result);
+    return result.quotient;
+  }
+
+  mod(nbi: NBaseInteger): NBaseInteger;
+  mod(n: number): NBaseInteger;
+  mod(arg: number | NBaseInteger): NBaseInteger {
+    const other = NBaseInteger.clone(flag, this.safeOther(flag, arg));
+    const result = NBaseInteger.divAToB(flag, this, other);
+    console.log(result);
+    return result.remainder;
+  }
+
   // #endregion
 
   // #region signs
