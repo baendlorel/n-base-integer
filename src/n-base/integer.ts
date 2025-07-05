@@ -59,6 +59,7 @@ const minus = (a: readonly number[], b: readonly number[], base: number) => {
     carry = Math.floor(v / base);
     diff[i] = v - carry * base;
   }
+  // greater - less, last carry is definitly 0.
   // carry of minus is impossible to be non-zero
 
   // purge zeros
@@ -252,33 +253,10 @@ export class NBaseInteger {
     const ad = a.#digits.slice();
     const bd = b.#digits; // because b will change, there is no need to slice.
     const base = a.base;
-    let max = ad.length;
-    // fill empty parts
-    if (ad.length > bd.length) {
-      bd.fill(0, bd.length, max);
-      while (bd.length < max) {
-        bd.push(0);
-      }
-    } else {
-      max = bd.length;
-      while (ad.length < max) {
-        ad.push(0);
-      }
-    }
 
     // same sign, add them directly
     if (a.#negative === b.#negative) {
-      let carry = 0;
-      for (let i = 0; i < max; i++) {
-        const v = ad[i] + bd[i] + carry;
-
-        carry = Math.floor(v / base);
-        bd[i] = v - carry * base;
-      }
-      if (carry > 0) {
-        bd.push(carry);
-      }
-      return b;
+      b.#digits = plus(ad, bd, base);
     }
 
     // now a b has different signs, we need to judge the sign first
@@ -286,47 +264,20 @@ export class NBaseInteger {
     switch (NBaseInteger.compareAbs(priv, a, b)) {
       case Ordering.Equal:
         // & means a = -b, then a + b = 0
-        {
-          b.#digits.length = 1; // clear b
-          b.#digits[0] = 0;
-          b.#negative = false; // set sign to positive
-        }
+        b.#negative = false; // set sign to positive
+        b.#digits.length = 1; // clear b
+        b.#digits[0] = 0;
         break; // no need to purge zeros
       case Ordering.Greater:
         // & means |a| > |b|, then a + b = sgn(a)(|a| - |b|)
-        {
-          b.#negative = a.#negative; // |a| is greater, so sign must be same as a
-          let carry = 0;
-          for (let i = 0; i < max; i++) {
-            const v = ad[i] - bd[i] + carry;
-            carry = Math.floor(v / base);
-            bd[i] = v - carry * base;
-          }
-          // greater - less, last carry is definitly 0.
-        }
+        b.#negative = a.#negative; // |a| is greater, so sign must be same as a
+        b.#digits = minus(ad, bd, base);
         break;
       case Ordering.Less:
         // & means |b| > |a|, then a + b = sgn(b)(|b| - |a|)
-        {
-          let carry = 0;
-          for (let i = 0; i < max; i++) {
-            const v = bd[i] - ad[i] + carry;
-            carry = Math.floor(v / base);
-            bd[i] = v - carry * base;
-          }
-          // greater - less, last carry is definitly 0.
-        }
+        b.#digits = minus(bd, ad, base);
         break;
     }
-
-    // purge the zeros
-    for (let i = bd.length - 1; i >= 0; i--) {
-      if (bd[i] !== 0) {
-        bd.length = i + 1; // truncate the array
-        return b;
-      }
-    }
-    bd.length = 1; // if all digits are zero, set to 0
     return b;
   }
 
