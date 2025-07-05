@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { NBaseInteger } from '../src/n-base/integer';
+import { NBaseInteger } from '../../src/n-base/integer';
 
 describe('NBaseInteger comparison functions', () => {
   const a = NBaseInteger.from(123, 10);
