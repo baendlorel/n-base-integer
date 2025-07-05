@@ -8,6 +8,22 @@ interface NBaseIntegerDivResult {
   remainder: NBaseInteger;
 }
 
+// #region primitive functions
+const cmp = (a: readonly number[], b: readonly number[]) => {
+  if (a === b) {
+    return Ordering.Equal;
+  }
+  if (a.length !== b.length) {
+    return a.length > b.length ? Ordering.Greater : Ordering.Less;
+  }
+  for (let i = a.length - 1; i >= 0; i--) {
+    if (a[i] !== b[i]) {
+      return a[i] > b[i] ? Ordering.Greater : Ordering.Less;
+    }
+  }
+  return Ordering.Equal;
+};
+
 const plus = (a: readonly number[], b: readonly number[], base: number) => {
   // assure that a is longer
   if (a.length < b.length) {
@@ -70,6 +86,21 @@ const minus = (a: readonly number[], b: readonly number[], base: number) => {
 };
 
 /**
+ * ! Only use when a > b
+ *    ___13____
+ *  13) 170
+ *      13
+ *       40
+ *       39
+ *        1
+ * So 170 / 13 = 13 ... 1
+ */
+const divide = (a: readonly number[], b: readonly number[], base: number) => {
+  // move this length to use vertical expression
+  const len = b.length;
+};
+
+/**
  * Purge the leading zeros of an array of digits.
  * @param a
  * @returns
@@ -85,6 +116,7 @@ const purgeZeros = (a: number[]) => {
   a.length = 1;
   return a;
 };
+// #endregion
 
 /**
  * NBase is a class for n-base numeral system
@@ -294,7 +326,7 @@ export class NBaseInteger {
 
     // now a b has different signs, we need to judge the sign first
     // only `greater - less` can be calculated
-    switch (NBaseInteger.#compareAbs(a, b)) {
+    switch (cmp(ad, bd)) {
       case Ordering.Equal:
         // & means a = -b, then a + b = 0
         b.#negative = false; // zero is considered positive
@@ -518,7 +550,7 @@ export class NBaseInteger {
     const resultNegative = a.#negative !== b.#negative;
 
     // simple situations
-    switch (NBaseInteger.#compareAbs(a, b)) {
+    switch (cmp(ad, bd)) {
       case Ordering.Equal:
         b.#negative = resultNegative;
         bd.length = 1;
@@ -753,46 +785,23 @@ export class NBaseInteger {
     if (a.#negative !== b.#negative) {
       return a.#negative ? Ordering.Less : Ordering.Greater;
     }
-    const ad = a.#digits;
-    const bd = b.#digits;
-    if (ad.length !== bd.length) {
-      if (a.#negative) {
-        return ad.length < bd.length ? Ordering.Greater : Ordering.Less;
-      } else {
-        return ad.length > bd.length ? Ordering.Greater : Ordering.Less;
-      }
-    }
-    if (a.#negative) {
-      for (let i = ad.length - 1; i >= 0; i--) {
-        if (ad[i] !== bd[i]) {
-          return ad[i] < bd[i] ? Ordering.Greater : Ordering.Less;
-        }
-      }
-    } else {
-      for (let i = ad.length - 1; i >= 0; i--) {
-        if (ad[i] !== bd[i]) {
-          return ad[i] > bd[i] ? Ordering.Greater : Ordering.Less;
-        }
-      }
-    }
-    return Ordering.Equal;
-  }
 
-  static #compareAbs(a: NBaseInteger, b: NBaseInteger): Ordering {
-    if (a === b) {
-      return Ordering.Equal;
-    }
-    const ad = a.#digits;
-    const bd = b.#digits;
-    if (ad.length !== bd.length) {
-      return ad.length > bd.length ? Ordering.Greater : Ordering.Less;
-    }
-    for (let i = ad.length - 1; i >= 0; i--) {
-      if (ad[i] !== bd[i]) {
-        return ad[i] > bd[i] ? Ordering.Greater : Ordering.Less;
+    // know a and b have same sign
+    const absCompareResult = cmp(a.#digits, b.#digits);
+
+    // if a is negative, we need to reverse it
+    if (a.#negative) {
+      switch (absCompareResult) {
+        case Ordering.Equal:
+          return Ordering.Equal;
+        case Ordering.Greater:
+          return Ordering.Less;
+        case Ordering.Less:
+          return Ordering.Greater;
       }
     }
-    return Ordering.Equal;
+
+    return absCompareResult;
   }
 
   /**
@@ -812,7 +821,7 @@ export class NBaseInteger {
    */
   #cmpAbs(arg: number | NBaseInteger): Ordering {
     const other = this.#safeOther(arg);
-    return NBaseInteger.#compareAbs(this, other);
+    return cmp(this.#digits, other.#digits);
   }
 
   eq(nbi: NBaseInteger): boolean;
