@@ -98,6 +98,29 @@ const minus = (a: readonly number[], b: readonly number[], base: number) => {
 const divide = (a: readonly number[], b: readonly number[], base: number) => {
   // move this length to use vertical expression
   const len = b.length;
+  const result: number[] = [];
+
+  let aa = a.slice(a.length - len, a.length);
+  let carry = 0;
+  // start from high rank
+  switch (cmp(aa, b)) {
+    case Ordering.Equal:
+      result.unshift(1);
+      break;
+    case Ordering.Greater:
+      // process div
+      for (let i = 2; i < base; i++) {
+        // mul
+      }
+      break;
+    case Ordering.Less:
+      // chop another digit and try again
+      aa.unshift(a.slice(a.length - len - 1, 1)[0]);
+      break;
+  }
+  while (aa.length > 0) {
+    const dividend = aa.splice();
+  }
 };
 
 /**
