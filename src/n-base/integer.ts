@@ -143,8 +143,7 @@ export class NBaseInteger {
    * @param priv Internal symbol for access control.
    * @param a The instance to clone.
    */
-  private static clone(priv: symbol, a: NBaseInteger): NBaseInteger {
-    protect(priv);
+  static #clone(a: NBaseInteger): NBaseInteger {
     const clone = new NBaseInteger(flag, a.sign, a.#base, a.#charset);
     clone.#digits = a.#digits.slice();
     return clone;
@@ -158,9 +157,7 @@ export class NBaseInteger {
    * @param arg The argument to check.
    * @param clone Whether to clone the instance.
    */
-  private safeOther(priv: symbol, arg: number | NBaseInteger): NBaseInteger {
-    protect(priv);
-
+  #safeOther(arg: number | NBaseInteger): NBaseInteger {
     // b is a normal number
     if (typeof arg === 'number') {
       const n = safeInt(arg);
@@ -272,8 +269,7 @@ export class NBaseInteger {
    * @param a The first operand.
    * @param b The second operand (result stored here).
    */
-  private static addAToB(priv: symbol, a: NBaseInteger, b: NBaseInteger): NBaseInteger {
-    protect(priv);
+  static #addAToB(a: NBaseInteger, b: NBaseInteger): NBaseInteger {
     const ad = a.#digits.slice();
     const bd = b.#digits; // because b will change, there is no need to slice.
     const base = a.base;
@@ -286,7 +282,7 @@ export class NBaseInteger {
 
     // now a b has different signs, we need to judge the sign first
     // only `greater - less` can be calculated
-    switch (NBaseInteger.compareAbs(priv, a, b)) {
+    switch (NBaseInteger.#compareAbs(a, b)) {
       case Ordering.Equal:
         // & means a = -b, then a + b = 0
         b.#negative = false; // zero is considered positive
@@ -309,31 +305,31 @@ export class NBaseInteger {
   add(nbi: NBaseInteger): NBaseInteger;
   add(n: number): NBaseInteger;
   add(arg: number | NBaseInteger): NBaseInteger {
-    const other = NBaseInteger.clone(flag, this.safeOther(flag, arg));
-    return NBaseInteger.addAToB(flag, this, other);
+    const other = NBaseInteger.#clone(this.#safeOther(arg));
+    return NBaseInteger.#addAToB(this, other);
   }
 
   addAssign(nbi: NBaseInteger): NBaseInteger;
   addAssign(n: number): NBaseInteger;
   addAssign(arg: number | NBaseInteger): NBaseInteger {
-    const other = this.safeOther(flag, arg);
-    return NBaseInteger.addAToB(flag, other, this);
+    const other = this.#safeOther(arg);
+    return NBaseInteger.#addAToB(other, this);
   }
 
   sub(nbi: NBaseInteger): NBaseInteger;
   sub(n: number): NBaseInteger;
   sub(arg: number | NBaseInteger): NBaseInteger {
-    const other = NBaseInteger.clone(flag, this.safeOther(flag, arg));
+    const other = NBaseInteger.#clone(this.#safeOther(arg));
     other.oppAssign();
-    return NBaseInteger.addAToB(flag, this, other);
+    return NBaseInteger.#addAToB(this, other);
   }
 
   subAssign(nbi: NBaseInteger): NBaseInteger;
   subAssign(n: number): NBaseInteger;
   subAssign(arg: number | NBaseInteger): NBaseInteger {
-    const other = this.safeOther(flag, arg);
+    const other = this.#safeOther(arg);
     other.oppAssign();
-    NBaseInteger.addAToB(flag, other, this);
+    NBaseInteger.#addAToB(other, this);
     other.oppAssign();
     return this;
   }
@@ -393,8 +389,7 @@ export class NBaseInteger {
    * @param a The first operand.
    * @param b The second operand (result stored here).
    */
-  private static mulAToB(priv: symbol, a: NBaseInteger, b: NBaseInteger): NBaseInteger {
-    protect(priv);
+  static #mulAToB(a: NBaseInteger, b: NBaseInteger): NBaseInteger {
     const ad = a.#digits.slice();
     const bd = b.#digits; // because b will change, there is no need to slice.
     const base = a.base;
@@ -442,15 +437,15 @@ export class NBaseInteger {
   mul(nbi: NBaseInteger): NBaseInteger;
   mul(n: number): NBaseInteger;
   mul(arg: number | NBaseInteger): NBaseInteger {
-    const other = NBaseInteger.clone(flag, this.safeOther(flag, arg));
-    return NBaseInteger.mulAToB(flag, this, other);
+    const other = NBaseInteger.#clone(this.#safeOther(arg));
+    return NBaseInteger.#mulAToB(this, other);
   }
 
   mulAssgin(nbi: NBaseInteger): NBaseInteger;
   mulAssgin(n: number): NBaseInteger;
   mulAssgin(arg: number | NBaseInteger): NBaseInteger {
-    const other = this.safeOther(flag, arg);
-    return NBaseInteger.mulAToB(flag, other, this);
+    const other = this.#safeOther(arg);
+    return NBaseInteger.#mulAToB(other, this);
   }
   // #endregion
 
@@ -495,8 +490,7 @@ export class NBaseInteger {
   /**
    * a / b = q ... r
    */
-  private static divAToB(priv: symbol, a: NBaseInteger, b: NBaseInteger): NBaseIntegerDivResult {
-    protect(priv);
+  static #divAToB(a: NBaseInteger, b: NBaseInteger): NBaseIntegerDivResult {
     if (b.isZero) {
       throw new RangeError('Division by zero');
     }
@@ -512,7 +506,7 @@ export class NBaseInteger {
     const resultNegative = a.#negative !== b.#negative;
 
     // simple situations
-    switch (NBaseInteger.compareAbs(priv, a, b)) {
+    switch (NBaseInteger.#compareAbs(a, b)) {
       case Ordering.Equal:
         b.#negative = resultNegative;
         bd.length = 1;
@@ -553,8 +547,8 @@ export class NBaseInteger {
   divmod(nbi: NBaseInteger): NBaseIntegerDivResult;
   divmod(n: number): NBaseIntegerDivResult;
   divmod(arg: number | NBaseInteger): NBaseIntegerDivResult {
-    const other = NBaseInteger.clone(flag, this.safeOther(flag, arg));
-    const result = NBaseInteger.divAToB(flag, this, other);
+    const other = NBaseInteger.#clone(this.#safeOther(arg));
+    const result = NBaseInteger.#divAToB(this, other);
     console.log(result);
     return result;
   }
@@ -562,8 +556,8 @@ export class NBaseInteger {
   div(nbi: NBaseInteger): NBaseInteger;
   div(n: number): NBaseInteger;
   div(arg: number | NBaseInteger): NBaseInteger {
-    const other = NBaseInteger.clone(flag, this.safeOther(flag, arg));
-    const result = NBaseInteger.divAToB(flag, this, other);
+    const other = NBaseInteger.#clone(this.#safeOther(arg));
+    const result = NBaseInteger.#divAToB(this, other);
     console.log(result);
     return result.quotient;
   }
@@ -571,8 +565,8 @@ export class NBaseInteger {
   mod(nbi: NBaseInteger): NBaseInteger;
   mod(n: number): NBaseInteger;
   mod(arg: number | NBaseInteger): NBaseInteger {
-    const other = NBaseInteger.clone(flag, this.safeOther(flag, arg));
-    const result = NBaseInteger.divAToB(flag, this, other);
+    const other = NBaseInteger.#clone(this.#safeOther(arg));
+    const result = NBaseInteger.#divAToB(this, other);
     console.log(result);
     return result.remainder;
   }
@@ -648,19 +642,19 @@ export class NBaseInteger {
   }
 
   opp() {
-    const b = NBaseInteger.clone(flag, this);
+    const b = NBaseInteger.#clone(this);
     b.#negative = !b.#negative;
     return b;
   }
 
   neg() {
-    const b = NBaseInteger.clone(flag, this);
+    const b = NBaseInteger.#clone(this);
     b.#negative = true;
     return b;
   }
 
   pos() {
-    const b = NBaseInteger.clone(flag, this);
+    const b = NBaseInteger.#clone(this);
     b.#negative = false;
     return b;
   }
@@ -673,8 +667,7 @@ export class NBaseInteger {
    * @param a The first operand.
    * @param b The second operand.
    */
-  private static compare(priv: symbol, a: NBaseInteger, b: NBaseInteger): Ordering {
-    protect(priv);
+  static #compare(a: NBaseInteger, b: NBaseInteger): Ordering {
     if (a === b) {
       return Ordering.Equal;
     }
@@ -709,8 +702,7 @@ export class NBaseInteger {
     return Ordering.Equal;
   }
 
-  private static compareAbs(priv: symbol, a: NBaseInteger, b: NBaseInteger): Ordering {
-    protect(priv);
+  static #compareAbs(a: NBaseInteger, b: NBaseInteger): Ordering {
     if (a === b) {
       return Ordering.Equal;
     }
@@ -732,10 +724,9 @@ export class NBaseInteger {
    * @param priv Internal symbol for access control.
    * @param arg The value to compare with.
    */
-  private cmp(priv: symbol, arg: number | NBaseInteger): Ordering {
-    protect(priv);
-    const other = this.safeOther(flag, arg);
-    return NBaseInteger.compare(flag, this, other);
+  private cmp(arg: number | NBaseInteger): Ordering {
+    const other = this.#safeOther(arg);
+    return NBaseInteger.#compare(this, other);
   }
 
   /**
@@ -743,92 +734,91 @@ export class NBaseInteger {
    * @param priv Internal symbol for access control.
    * @param arg The value to compare with.
    */
-  private cmpAbs(priv: symbol, arg: number | NBaseInteger): Ordering {
-    protect(priv);
-    const other = this.safeOther(flag, arg);
-    return NBaseInteger.compareAbs(flag, this, other);
+  private cmpAbs(arg: number | NBaseInteger): Ordering {
+    const other = this.#safeOther(arg);
+    return NBaseInteger.#compareAbs(this, other);
   }
 
   eq(nbi: NBaseInteger): boolean;
   eq(n: number): boolean;
   eq(arg: number | NBaseInteger): boolean {
-    return this.cmp(flag, arg) === Ordering.Equal;
+    return this.cmp(arg) === Ordering.Equal;
   }
 
   ne(nbi: NBaseInteger): boolean;
   ne(n: number): boolean;
   ne(arg: number | NBaseInteger): boolean {
-    return this.cmp(flag, arg) !== Ordering.Equal;
+    return this.cmp(arg) !== Ordering.Equal;
   }
 
   gt(nbi: NBaseInteger): boolean;
   gt(n: number): boolean;
   gt(arg: number | NBaseInteger): boolean {
-    return this.cmp(flag, arg) === Ordering.Greater;
+    return this.cmp(arg) === Ordering.Greater;
   }
 
   gte(nbi: NBaseInteger): boolean;
   gte(n: number): boolean;
   gte(arg: number | NBaseInteger): boolean {
-    const o = this.cmp(flag, arg);
+    const o = this.cmp(arg);
     return o === Ordering.Greater || o === Ordering.Equal;
   }
 
   lt(nbi: NBaseInteger): boolean;
   lt(n: number): boolean;
   lt(arg: number | NBaseInteger): boolean {
-    return this.cmp(flag, arg) === Ordering.Less;
+    return this.cmp(arg) === Ordering.Less;
   }
 
   lte(nbi: NBaseInteger): boolean;
   lte(n: number): boolean;
   lte(arg: number | NBaseInteger): boolean {
-    const o = this.cmp(flag, arg);
+    const o = this.cmp(arg);
     return o === Ordering.Less || o === Ordering.Equal;
   }
 
   eqAbs(nbi: NBaseInteger): boolean;
   eqAbs(n: number): boolean;
   eqAbs(arg: number | NBaseInteger): boolean {
-    return this.cmpAbs(flag, arg) === Ordering.Equal;
+    return this.cmpAbs(arg) === Ordering.Equal;
   }
 
   neAbs(nbi: NBaseInteger): boolean;
   neAbs(n: number): boolean;
   neAbs(arg: number | NBaseInteger): boolean {
-    return this.cmpAbs(flag, arg) !== Ordering.Equal;
+    return this.cmpAbs(arg) !== Ordering.Equal;
   }
 
   gtAbs(nbi: NBaseInteger): boolean;
   gtAbs(n: number): boolean;
   gtAbs(arg: number | NBaseInteger): boolean {
-    return this.cmpAbs(flag, arg) === Ordering.Greater;
+    return this.cmpAbs(arg) === Ordering.Greater;
   }
 
   gteAbs(nbi: NBaseInteger): boolean;
   gteAbs(n: number): boolean;
   gteAbs(arg: number | NBaseInteger): boolean {
-    const o = this.cmpAbs(flag, arg);
+    const o = this.cmpAbs(arg);
     return o === Ordering.Greater || o === Ordering.Equal;
   }
 
   ltAbs(nbi: NBaseInteger): boolean;
   ltAbs(n: number): boolean;
   ltAbs(arg: number | NBaseInteger): boolean {
-    return this.cmpAbs(flag, arg) === Ordering.Less;
+    return this.cmpAbs(arg) === Ordering.Less;
   }
 
   lteAbs(nbi: NBaseInteger): boolean;
   lteAbs(n: number): boolean;
   lteAbs(arg: number | NBaseInteger): boolean {
-    const o = this.cmpAbs(flag, arg);
+    const o = this.cmpAbs(arg);
     return o === Ordering.Less || o === Ordering.Equal;
   }
   // #endregion
 
   // # others
   clone() {
-    return NBaseInteger.clone(flag, this);
+    return NBaseInteger.#clone(this);
   }
 
   toString(): string {
