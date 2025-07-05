@@ -8,6 +8,56 @@ interface NBaseIntegerDivResult {
   remainder: NBaseInteger;
 }
 
+const plus = (a: readonly number[], b: readonly number[], base: number) => {
+  // assure that a is longer
+  if (a.length < b.length) {
+    const temp = a;
+    a = b;
+    b = temp;
+  }
+
+  const sum: number[] = [];
+  let carry = 0;
+  for (let i = 0; i < b.length; i++) {
+    const v = a[i] + b[i] + carry;
+    carry = Math.floor(v / base);
+    sum[i] = v - carry * base;
+  }
+  for (let i = b.length; i < a.length; i++) {
+    const v = a[i] + carry;
+    carry = Math.floor(v / base);
+    sum[i] = v - carry * base;
+  }
+  if (carry > 0) {
+    sum.push(carry);
+  }
+  return sum;
+};
+
+/**
+ * ! Only use when a > b
+ */
+const minus = (a: readonly number[], b: readonly number[], base: number) => {
+  const diff: number[] = [];
+  let carry = 0;
+  for (let i = 0; i < b.length; i++) {
+    const v = a[i] - b[i] + carry;
+    carry = Math.floor(v / base);
+    diff[i] = v - carry * base;
+  }
+  for (let i = b.length; i < a.length; i++) {
+    const v = a[i] + carry;
+    carry = Math.floor(v / base);
+    diff[i] = v - carry * base;
+  }
+  if (carry > 0) {
+    if (diff[diff.length - 1] === 0) {
+      diff.pop();
+    }
+  }
+  return diff;
+};
+
 /**
  * NBase is a class for n-base numeral system
  */
@@ -309,6 +359,52 @@ export class NBaseInteger {
   }
   // #endregion
 
+  // #region inrecment/decrement
+  /**
+   * Means `i++`
+   * - equal to `i.addAssign(1)`
+   */
+  inc(): NBaseInteger {
+    const d = this.#digits;
+    if (d.length === 1 && d[0] === -1) {
+      // if the number is -1, then it will become 0
+      d[0] = 0;
+      this.#negative = false; // set sign to positive
+      return this;
+    }
+
+    if (this.#negative) {
+      // negative numbers++ is like positive--
+      this.#digits = minus(d, [1], this.#base);
+    } else {
+      this.#digits = plus(d, [1], this.#base);
+    }
+    return this;
+  }
+
+  /**
+   * Means `i--`
+   * - equal to `i.subAssign(1)`
+   */
+  dec(): NBaseInteger {
+    const d = this.#digits;
+    if (this.isZero) {
+      this.#negative = true;
+      d[0] = 1; // set to -1
+      return this;
+    }
+
+    if (this.#negative) {
+      // negative numbers-- is like positive++
+      this.#digits = plus(d, [1], this.#base);
+    } else {
+      this.#digits = minus(d, [1], this.#base);
+    }
+
+    return this;
+  }
+  // #endregion
+
   // #region multiply
   private static mulAToB(priv: symbol, a: NBaseInteger, b: NBaseInteger): NBaseInteger {
     protect(priv);
@@ -537,10 +633,10 @@ export class NBaseInteger {
     }
 
     // calculate
-    const pow = (ed: number[]): NBaseInteger => {
+    const pow = (exponent: NBaseInteger): NBaseInteger => {
       const res = new NBaseInteger(flag, 1, a.#base, a.#charset);
-
-      // ed = 0, return 1
+      const ed = exponent.#digits;
+      // handle some easy cases
       if (ed.length === 1) {
         switch (ed[0]) {
           case 0:
@@ -557,10 +653,7 @@ export class NBaseInteger {
       }
 
       // ed is even now an can be divided by 2
-      ed = ed.slice();
-      if (ed[0] % 2 === 1) {
-        res.#digits = a.#digits.slice(); // res = a
-        ed[0]--;
+      if (exponent.isOdd) {
       }
 
       let carry = 0;
