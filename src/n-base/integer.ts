@@ -69,6 +69,11 @@ const minus = (a: readonly number[], b: readonly number[], base: number) => {
   return purgeZeros(diff);
 };
 
+/**
+ * Purge the leading zeros of an array of digits.
+ * @param a
+ * @returns
+ */
 const purgeZeros = (a: number[]) => {
   for (let i = a.length - 1; i >= 0; i--) {
     if (a[i] !== 0) {
@@ -146,7 +151,9 @@ export class NBaseInteger {
   }
 
   /**
-   * Ensure argument is a valid NBaseInteger or number, optionally clone.
+   * Ensure argument is a valid NBaseInteger or number.
+   * - will create an NBaseInteger when `arg` is a number.
+   * - will return `arg` directly when it is already an NBaseInteger
    * @param priv Internal symbol for access control.
    * @param arg The argument to check.
    * @param clone Whether to clone the instance.
@@ -163,7 +170,7 @@ export class NBaseInteger {
     // b is also an NBaseInteger
     if (arg instanceof NBaseInteger) {
       const nbi = arg;
-      if (nbi.base !== this.base) {
+      if (nbi.#base !== this.#base) {
         throw new TypeError(`Called with a ${NAME} with different base.`);
       }
 
@@ -172,7 +179,7 @@ export class NBaseInteger {
        * & So if there strings are equal, their arrays would be equal too.
        * @see ./common.ts -- charsetMap
        */
-      if (nbi.charset !== this.charset) {
+      if (nbi.#charset !== this.#charset) {
         throw new TypeError(`Called with a ${NAME} with different charset.`);
       }
       return nbi;
@@ -259,7 +266,8 @@ export class NBaseInteger {
   // # Calculations. Ensure bases and charsets are same, then call this
   // #region add/sub
   /**
-   * Add a to b in place.
+   * This functions means `b = a + b`
+   * - `a.#digits` is copied, so it is safe to call like `a.add(a)`.
    * @param priv Internal symbol for access control.
    * @param a The first operand.
    * @param b The second operand (result stored here).
@@ -378,6 +386,13 @@ export class NBaseInteger {
   // #endregion
 
   // #region multiply
+  /**
+   * This functions means `b = a * b`
+   * - `a.#digits` is copied, so it is safe to call like `a.mul(a)`.
+   * @param priv Internal symbol for access control.
+   * @param a The first operand.
+   * @param b The second operand (result stored here).
+   */
   private static mulAToB(priv: symbol, a: NBaseInteger, b: NBaseInteger): NBaseInteger {
     protect(priv);
     const ad = a.#digits.slice();
@@ -440,29 +455,29 @@ export class NBaseInteger {
   // #endregion
 
   // #region division
-  static divmod2(a: NBaseInteger): NBaseIntegerDivResult {
-    if (a.isZero) {
+  divmod2(): NBaseIntegerDivResult {
+    const base = this.#base;
+    if (this.isZero) {
       return {
-        quotient: new NBaseInteger(flag, 0, a.#base, a.#charset),
-        remainder: new NBaseInteger(flag, 0, a.#base, a.#charset),
+        quotient: new NBaseInteger(flag, 0, base, this.#charset),
+        remainder: new NBaseInteger(flag, 0, base, this.#charset),
       };
     }
 
     // create a new NBaseInteger for the result
-    const ad = a.#digits as readonly number[];
-    const base = a.base;
+    const ad = this.#digits as readonly number[];
 
     // simple situations
     if (ad.length === 1) {
       const v = Math.floor(ad[0] / 2);
       const r = ad[0] - v * 2;
       return {
-        quotient: new NBaseInteger(flag, v, a.#base, a.#charset),
-        remainder: new NBaseInteger(flag, r, a.#base, a.#charset),
+        quotient: new NBaseInteger(flag, v, base, this.#charset),
+        remainder: new NBaseInteger(flag, r, base, this.#charset),
       };
     }
 
-    const quotient = new NBaseInteger(flag, 0, a.#base, a.#charset);
+    const quotient = new NBaseInteger(flag, 0, base, this.#charset);
     // divide by 2
     let carry = 0;
     for (let i = ad.length - 1; i >= 0; i--) {
@@ -471,7 +486,7 @@ export class NBaseInteger {
       carry = dividend - q * 2;
       quotient.#digits.unshift(q);
     }
-    const remainder = new NBaseInteger(flag, carry, a.#base, a.#charset);
+    const remainder = new NBaseInteger(flag, carry, base, this.#charset);
 
     purgeZeros(quotient.#digits);
     return { quotient, remainder };
@@ -567,7 +582,7 @@ export class NBaseInteger {
   // #region power
   /**
    * Calculate a^b.
-   * - 0^0 is considered as 1
+   * - 0^0 is considered as 1. Because in JS, 0**0 = 1
    * @param a The base.
    * @param b The exponent.
    */
@@ -583,12 +598,11 @@ export class NBaseInteger {
     }
 
     // calculate
-    const pow = (exponent: NBaseInteger): NBaseInteger => {
+    const pow = (a: NBaseInteger, exponent: NBaseInteger): NBaseInteger => {
       const res = new NBaseInteger(flag, 1, a.#base, a.#charset);
-      const ed = exponent.#digits;
       // handle some easy cases
-      if (ed.length === 1) {
-        switch (ed[0]) {
+      if (exponent.#digits.length === 1) {
+        switch (exponent.#digits[0]) {
           case 0:
             return res;
           case 1:
@@ -602,34 +616,16 @@ export class NBaseInteger {
         }
       }
 
-      // ed is even now an can be divided by 2
-      if (exponent.isOdd) {
+      const divResult = exponent.divmod2();
+      exponent = divResult.quotient;
+      if (!divResult.remainder.isZero) {
+        res.mulAssgin(a);
       }
 
-      let carry = 0;
-      console.log('before ed', ed);
-      for (let i = ed.length - 1; i >= 0; i--) {
-        ed[i] += carry * a.#base;
-        if (ed[i] % 2 === 1) {
-          ed[i]--; // make it even
-          carry = 1;
-        } else {
-          carry = 0;
-        }
-        ed[i] /= 2;
-      }
-      if (ed[ed.length - 1] === 0) {
-        ed.pop();
-        if (ed.length === 0) {
-          return res;
-        }
-      }
-      console.log('after ed', ed);
-      const v = pow(ed);
-      console.log(v.toString());
+      const v = pow(a, exponent);
       return res.mulAssgin(v).mulAssgin(v);
     };
-    const res = pow(b.#digits);
+    const res = pow(a, b);
     res.#negative = a.#negative && b.isOdd;
     return res;
   }
