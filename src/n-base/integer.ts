@@ -125,19 +125,25 @@ export class NBaseInteger {
   }
 
   get isOdd(): boolean {
-    if (this.#digits.length === 1) {
+    if (this.#base % 2 === 0) {
       return this.#digits[0] % 2 === 1;
-    } else {
-      return (this.#digits[0] + this.#digits[1]) % 2 === 1;
     }
+    let x = this.#digits[0] % 2;
+    for (let i = 0; i < this.#digits.length; i++) {
+      x ^= this.#digits[i] % 2;
+    }
+    return x === 1;
   }
 
   get isEven(): boolean {
-    if (this.#digits.length === 1) {
+    if (this.#base % 2 === 0) {
       return this.#digits[0] % 2 === 0;
-    } else {
-      return (this.#digits[0] + this.#digits[1]) % 2 === 0;
     }
+    let x = this.#digits[0] % 2;
+    for (let i = 0; i < this.#digits.length; i++) {
+      x ^= this.#digits[i] % 2;
+    }
+    return x === 0;
   }
 
   get sign(): -1 | 1 {
@@ -374,7 +380,7 @@ export class NBaseInteger {
   // #endregion
 
   // #region division
-  static div2(a: NBaseInteger): NBaseIntegerDivResult {
+  static divmod2(a: NBaseInteger): NBaseIntegerDivResult {
     if (a.isZero) {
       return {
         quotient: new NBaseInteger(flag, 0, a.#base, a.#charset),

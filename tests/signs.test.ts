@@ -59,8 +59,12 @@ describe('NBaseInteger signs', () => {
   });
 
   it('isOdd', () => {
-    const a = NBaseInteger.from(6, 5);
-    expect(a.toString()).toBe('11');
-    expect(a.isOdd).toBe(false);
+    const a = NBaseInteger.from(625, 5);
+    expect(a.toString()).toBe('10000');
+    expect(a.isOdd).toBe(true);
+
+    const b = NBaseInteger.from(25, 5);
+    expect(b.toString()).toBe('100');
+    expect(b.isOdd).toBe(true);
   });
 });
