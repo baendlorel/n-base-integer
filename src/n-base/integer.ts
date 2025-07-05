@@ -800,7 +800,7 @@ export class NBaseInteger {
    * @param priv Internal symbol for access control.
    * @param arg The value to compare with.
    */
-  private cmp(arg: number | NBaseInteger): Ordering {
+  #cmp(arg: number | NBaseInteger): Ordering {
     const other = this.#safeOther(arg);
     return NBaseInteger.#compare(this, other);
   }
@@ -810,7 +810,7 @@ export class NBaseInteger {
    * @param priv Internal symbol for access control.
    * @param arg The value to compare with.
    */
-  private cmpAbs(arg: number | NBaseInteger): Ordering {
+  #cmpAbs(arg: number | NBaseInteger): Ordering {
     const other = this.#safeOther(arg);
     return NBaseInteger.#compareAbs(this, other);
   }
@@ -818,76 +818,76 @@ export class NBaseInteger {
   eq(nbi: NBaseInteger): boolean;
   eq(n: number): boolean;
   eq(arg: number | NBaseInteger): boolean {
-    return this.cmp(arg) === Ordering.Equal;
+    return this.#cmp(arg) === Ordering.Equal;
   }
 
   ne(nbi: NBaseInteger): boolean;
   ne(n: number): boolean;
   ne(arg: number | NBaseInteger): boolean {
-    return this.cmp(arg) !== Ordering.Equal;
+    return this.#cmp(arg) !== Ordering.Equal;
   }
 
   gt(nbi: NBaseInteger): boolean;
   gt(n: number): boolean;
   gt(arg: number | NBaseInteger): boolean {
-    return this.cmp(arg) === Ordering.Greater;
+    return this.#cmp(arg) === Ordering.Greater;
   }
 
   gte(nbi: NBaseInteger): boolean;
   gte(n: number): boolean;
   gte(arg: number | NBaseInteger): boolean {
-    const o = this.cmp(arg);
+    const o = this.#cmp(arg);
     return o === Ordering.Greater || o === Ordering.Equal;
   }
 
   lt(nbi: NBaseInteger): boolean;
   lt(n: number): boolean;
   lt(arg: number | NBaseInteger): boolean {
-    return this.cmp(arg) === Ordering.Less;
+    return this.#cmp(arg) === Ordering.Less;
   }
 
   lte(nbi: NBaseInteger): boolean;
   lte(n: number): boolean;
   lte(arg: number | NBaseInteger): boolean {
-    const o = this.cmp(arg);
+    const o = this.#cmp(arg);
     return o === Ordering.Less || o === Ordering.Equal;
   }
 
   eqAbs(nbi: NBaseInteger): boolean;
   eqAbs(n: number): boolean;
   eqAbs(arg: number | NBaseInteger): boolean {
-    return this.cmpAbs(arg) === Ordering.Equal;
+    return this.#cmpAbs(arg) === Ordering.Equal;
   }
 
   neAbs(nbi: NBaseInteger): boolean;
   neAbs(n: number): boolean;
   neAbs(arg: number | NBaseInteger): boolean {
-    return this.cmpAbs(arg) !== Ordering.Equal;
+    return this.#cmpAbs(arg) !== Ordering.Equal;
   }
 
   gtAbs(nbi: NBaseInteger): boolean;
   gtAbs(n: number): boolean;
   gtAbs(arg: number | NBaseInteger): boolean {
-    return this.cmpAbs(arg) === Ordering.Greater;
+    return this.#cmpAbs(arg) === Ordering.Greater;
   }
 
   gteAbs(nbi: NBaseInteger): boolean;
   gteAbs(n: number): boolean;
   gteAbs(arg: number | NBaseInteger): boolean {
-    const o = this.cmpAbs(arg);
+    const o = this.#cmpAbs(arg);
     return o === Ordering.Greater || o === Ordering.Equal;
   }
 
   ltAbs(nbi: NBaseInteger): boolean;
   ltAbs(n: number): boolean;
   ltAbs(arg: number | NBaseInteger): boolean {
-    return this.cmpAbs(arg) === Ordering.Less;
+    return this.#cmpAbs(arg) === Ordering.Less;
   }
 
   lteAbs(nbi: NBaseInteger): boolean;
   lteAbs(n: number): boolean;
   lteAbs(arg: number | NBaseInteger): boolean {
-    const o = this.cmpAbs(arg);
+    const o = this.#cmpAbs(arg);
     return o === Ordering.Less || o === Ordering.Equal;
   }
   // #endregion
@@ -906,8 +906,10 @@ export class NBaseInteger {
   }
 
   // # test
+  // todo remove this from production code
   get data() {
     return {
+      w: 'test only method',
       base: this.#base,
       digits: this.#digits.slice(),
       negative: this.#negative,

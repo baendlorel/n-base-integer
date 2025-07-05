@@ -7,8 +7,8 @@ import alias from '@rollup/plugin-alias';
 import terser from '@rollup/plugin-terser';
 import babel from '@rollup/plugin-babel';
 
+import custom from './plugins/custom.js';
 const tsconfigFile = './tsconfig.build.json';
-
 /**
  * @type {import('rollup').RollupOptions}
  */
@@ -32,8 +32,11 @@ export default [
       commonjs(),
       typescript({
         tsconfig: tsconfigFile,
+        transformers: {
+          before: [...custom],
+        },
       }),
-      babel({
+      void babel({
         babelHelpers: 'bundled',
         extensions: ['.ts', '.tsx', '.js', '.jsx'],
         presets: [['@babel/preset-env', { targets: { node: '14' } }]],
@@ -46,7 +49,7 @@ export default [
           ],
         ],
       }),
-      terser({
+      void terser({
         format: {
           comments: false, // 移除所有注释
         },

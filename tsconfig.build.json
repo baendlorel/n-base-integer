@@ -5,5 +5,5 @@
     "declaration": false
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["tests/**/*"]
+  "exclude": ["tests/**/*", "plugins/**/*.ts"]
 }
