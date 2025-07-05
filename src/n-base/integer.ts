@@ -20,6 +20,15 @@ const plus = (a: readonly number[], b: readonly number[], base: number) => {
   let carry = 0;
   for (let i = 0; i < b.length; i++) {
     const v = a[i] + b[i] + carry;
+
+    /**
+     * Through some tests, `v % base` and `v - carry * base` are almost equivalent.
+     * However `v - carry * base` always give positive result.
+     * So we use `v - carry * base` here
+     *
+     * @see https://github.com/baendlorel/ts-performance
+     * @see src/performance/modulo.ts
+     */
     carry = Math.floor(v / base);
     sum[i] = v - carry * base;
   }
@@ -50,9 +59,12 @@ const minus = (a: readonly number[], b: readonly number[], base: number) => {
     carry = Math.floor(v / base);
     diff[i] = v - carry * base;
   }
-  if (carry > 0) {
-    if (diff[diff.length - 1] === 0) {
-      diff.pop();
+  // carry of minus is impossible to be non-zero
+
+  // purge zeros
+  for (let i = diff.length - 1; i >= 1; i++) {
+    if (diff[i] !== 0) {
+      diff.length = i + 1;
     }
   }
   return diff;
@@ -260,14 +272,6 @@ export class NBaseInteger {
       for (let i = 0; i < max; i++) {
         const v = ad[i] + bd[i] + carry;
 
-        /**
-         * Through some tests, `v % base` and `v - carry * base` are almost equivalent.
-         * However `v - carry * base` always give positive result.
-         * So we use `v - carry * base` here
-         *
-         * @see https://github.com/baendlorel/ts-performance
-         * @see src/performance/modulo.ts
-         */
         carry = Math.floor(v / base);
         bd[i] = v - carry * base;
       }
