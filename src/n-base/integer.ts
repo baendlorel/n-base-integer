@@ -91,7 +91,19 @@ const purgeZeros = (a: number[]) => {
  */
 export class NBaseInteger {
   // # Creation
+  /**
+   * Create an NBaseInteger with default charsets
+   * - default charsets is '0-9A-Za-z'
+   * @param n 10-number
+   * @param base
+   */
   static from(n: number, base: number): NBaseInteger;
+  /**
+   * Create an NBaseInteger with custom charsets
+   * - `charset.length` will be the `base`
+   * @param n 10-number
+   * @param charset
+   */
   static from(n: number, charset: string): NBaseInteger;
   static from(n: number, arg: number | string): NBaseInteger {
     safeInt(n);
@@ -574,13 +586,41 @@ export class NBaseInteger {
   // #endregion
 
   // #region power
+  static #circularPow(a: NBaseInteger, exponent: NBaseInteger): NBaseInteger {
+    const res = new NBaseInteger(flag, 1, a.#base, a.#charset);
+    // handle some easy cases
+    if (exponent.#digits.length === 1) {
+      switch (exponent.#digits[0]) {
+        case 0:
+          return res;
+        case 1:
+          return res.mulAssgin(a);
+        case 2:
+          return res.mulAssgin(a).mulAssgin(a);
+        case 3:
+          return res.mulAssgin(a).mulAssgin(a).mulAssgin(a);
+        default:
+          break;
+      }
+    }
+
+    const divResult = exponent.divmod2();
+    exponent = divResult.quotient;
+    if (!divResult.remainder.isZero) {
+      res.mulAssgin(a);
+    }
+
+    const v = NBaseInteger.#circularPow(a, exponent);
+    return res.mulAssgin(v).mulAssgin(v);
+  }
+
   /**
    * Calculate a^b.
    * - 0^0 is considered as 1. Because in JS, 0**0 = 1
    * @param a The base.
    * @param b The exponent.
    */
-  static pow(a: NBaseInteger, b: NBaseInteger): NBaseInteger {
+  static #pow(a: NBaseInteger, b: NBaseInteger): NBaseInteger {
     if (b.#negative) {
       throw new RangeError('Exponent must be non-negative.');
     }
@@ -592,36 +632,72 @@ export class NBaseInteger {
     }
 
     // calculate
-    const pow = (a: NBaseInteger, exponent: NBaseInteger): NBaseInteger => {
-      const res = new NBaseInteger(flag, 1, a.#base, a.#charset);
-      // handle some easy cases
-      if (exponent.#digits.length === 1) {
-        switch (exponent.#digits[0]) {
-          case 0:
-            return res;
-          case 1:
-            return res.mulAssgin(a);
-          case 2:
-            return res.mulAssgin(a).mulAssgin(a);
-          case 3:
-            return res.mulAssgin(a).mulAssgin(a).mulAssgin(a);
-          default:
-            break;
-        }
-      }
-
-      const divResult = exponent.divmod2();
-      exponent = divResult.quotient;
-      if (!divResult.remainder.isZero) {
-        res.mulAssgin(a);
-      }
-
-      const v = pow(a, exponent);
-      return res.mulAssgin(v).mulAssgin(v);
-    };
-    const res = pow(a, b);
+    const res = NBaseInteger.#circularPow(a, b);
     res.#negative = a.#negative && b.isOdd;
     return res;
+  }
+
+  static #circularPowWithNumber(a: NBaseInteger, exponent: number): NBaseInteger {
+    const res = new NBaseInteger(flag, 1, a.#base, a.#charset);
+    // handle some easy cases
+    switch (exponent) {
+      case 0:
+        return res;
+      case 1:
+        return res.mulAssgin(a);
+      case 2:
+        return res.mulAssgin(a).mulAssgin(a);
+      case 3:
+        return res.mulAssgin(a).mulAssgin(a).mulAssgin(a);
+      default:
+        break;
+    }
+
+    const remainder = exponent % 2;
+    exponent = (exponent - remainder) / 2;
+    if (remainder === 1) {
+      res.mulAssgin(a);
+    }
+
+    const v = NBaseInteger.#circularPowWithNumber(a, exponent);
+    return res.mulAssgin(v).mulAssgin(v);
+  }
+
+  /**
+   * Calculate a^b.
+   * - 0^0 is considered as 1. Because in JS, 0**0 = 1
+   * @param a The base.
+   * @param b The exponent.
+   */
+  static #powWithNumber(a: NBaseInteger, b: number): NBaseInteger {
+    if (b < 0) {
+      throw new RangeError('Exponent must be non-negative.');
+    }
+    b = safeInt(b);
+    if (b === 0) {
+      return new NBaseInteger(flag, 1, a.#base, a.#charset); // a^0 = 1
+    }
+    if (a.isZero) {
+      return new NBaseInteger(flag, 0, a.#base, a.#charset); // a^0 = 1
+    }
+
+    // calculate
+    const res = NBaseInteger.#circularPowWithNumber(a, b);
+    res.#negative = a.#negative && b % 2 === 1;
+    return res;
+  }
+
+  pow(nbi: NBaseInteger): NBaseInteger;
+  pow(n: number): NBaseInteger;
+  pow(arg: number | NBaseInteger): NBaseInteger {
+    if (typeof arg === 'number') {
+      return NBaseInteger.#powWithNumber(this, arg);
+    }
+    if (arg instanceof NBaseInteger) {
+      return NBaseInteger.#pow(this, arg);
+    }
+
+    throw new TypeError(`Exponent should be a number or ${NAME}.`);
   }
   // #endregion
 
@@ -816,7 +892,7 @@ export class NBaseInteger {
   }
   // #endregion
 
-  // # others
+  // #region others
   clone() {
     return NBaseInteger.#clone(this);
   }
@@ -828,4 +904,15 @@ export class NBaseInteger {
       .join('');
     return `${this.#negative ? '-' : ''}${abs}`;
   }
+
+  // # test
+  get data() {
+    return {
+      base: this.#base,
+      digits: this.#digits.slice(),
+      negative: this.#negative,
+      charsets: this.#charset.slice(),
+    };
+  }
+  // #endregion
 }
