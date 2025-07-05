@@ -62,8 +62,12 @@ const minus = (a: readonly number[], b: readonly number[], base: number) => {
   // greater - less, last carry is definitly 0.
   // carry of minus is impossible to be non-zero
 
+  if (carry > 0) {
+    throw new Error(`minus: carry = ${carry}, must be a < b!`);
+  }
+
   // purge zeros
-  for (let i = diff.length - 1; i >= 1; i++) {
+  for (let i = diff.length - 1; i >= 1; i--) {
     if (diff[i] !== 0) {
       diff.length = i + 1;
     }
@@ -156,6 +160,12 @@ export class NBaseInteger {
       if (nbi.base !== this.base) {
         throw new TypeError(`Called with a ${NAME} with different base.`);
       }
+
+      /**
+       * & This works because each charset string will map to a charset array.
+       * & So if there strings are equal, their arrays would be equal too.
+       * @see ./common.ts -- charsetMap
+       */
       if (nbi.charset !== this.charset) {
         throw new TypeError(`Called with a ${NAME} with different charset.`);
       }
@@ -257,6 +267,7 @@ export class NBaseInteger {
     // same sign, add them directly
     if (a.#negative === b.#negative) {
       b.#digits = plus(ad, bd, base);
+      return b;
     }
 
     // now a b has different signs, we need to judge the sign first

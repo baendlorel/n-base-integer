@@ -6,7 +6,6 @@ describe('NBaseInteger.add', () => {
     const a = NBaseInteger.from(123, 10);
     const b = NBaseInteger.from(456, 10);
     const c = a.add(b);
-
     expect(c.toString()).toBe('579');
     // Ensure immutability
     expect(a.toString()).toBe('123');
