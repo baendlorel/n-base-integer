@@ -66,13 +66,19 @@ const minus = (a: readonly number[], b: readonly number[], base: number) => {
     throw new Error(`minus: carry = ${carry}, must be a < b!`);
   }
 
-  // purge zeros
-  for (let i = diff.length - 1; i >= 1; i--) {
-    if (diff[i] !== 0) {
-      diff.length = i + 1;
+  return purgeZeros(diff);
+};
+
+const purgeZeros = (a: number[]) => {
+  for (let i = a.length - 1; i >= 0; i--) {
+    if (a[i] !== 0) {
+      a.length = i + 1;
+      return a;
     }
   }
-  return diff;
+  // if every digit is zero, return a single zero
+  a.length = 1;
+  return a;
 };
 
 /**
@@ -275,10 +281,10 @@ export class NBaseInteger {
     switch (NBaseInteger.compareAbs(priv, a, b)) {
       case Ordering.Equal:
         // & means a = -b, then a + b = 0
-        b.#negative = false; // set sign to positive
-        b.#digits.length = 1; // clear b
+        b.#negative = false; // zero is considered positive
+        b.#digits.length = 1;
         b.#digits[0] = 0;
-        break; // no need to purge zeros
+        break;
       case Ordering.Greater:
         // & means |a| > |b|, then a + b = sgn(a)(|a| - |b|)
         b.#negative = a.#negative; // |a| is greater, so sign must be same as a
@@ -414,15 +420,7 @@ export class NBaseInteger {
         bd.push(carry);
       }
     }
-
-    // purge the zeros
-    for (let i = bd.length - 1; i >= 0; i--) {
-      if (bd[i] !== 0) {
-        bd.length = i + 1; // truncate the array
-        return b;
-      }
-    }
-    bd.length = 1;
+    purgeZeros(bd);
     return b;
   }
 
@@ -475,14 +473,7 @@ export class NBaseInteger {
     }
     const remainder = new NBaseInteger(flag, carry, a.#base, a.#charset);
 
-    // purge the zeros
-    for (let i = quotient.#digits.length - 1; i >= 0; i--) {
-      if (quotient.#digits[i] !== 0) {
-        quotient.#digits.length = i + 1; // truncate the array
-        return { quotient, remainder };
-      }
-    }
-    quotient.#digits.length = 1; // if all digits are zero, set to 0
+    purgeZeros(quotient.#digits);
     return { quotient, remainder };
   }
 
@@ -540,14 +531,7 @@ export class NBaseInteger {
     const delta = base ** (x - bq);
     console.log('delta', delta, 'approximated quotient', base ** delta);
 
-    // purge zeros
-    for (let i = b.#digits.length - 1; i >= 0; i--) {
-      if (b.#digits[i] !== 0) {
-        b.#digits.length = i + 1;
-        return result;
-      }
-    }
-    b.#digits.length = 1;
+    purgeZeros(b.#digits);
     return result;
   }
 
