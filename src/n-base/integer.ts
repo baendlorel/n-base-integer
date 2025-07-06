@@ -149,8 +149,15 @@ const enum ChopCase {
  * So 170 / 13 = 13 ... 1
  */
 const divide = (a: readonly number[], b: readonly number[], base: number): PrimitiveDivResult => {
-  // & Since we already have a > b, ensuring b < base
-  // & enables us to use `divideSmall`
+  if (b.length === 1 && b[0] === 1) {
+    return {
+      quotient: a.slice(),
+      remainder: [0],
+    };
+  }
+
+  // Since we already have a > b, ensuring base > b
+  // enables us to use `divideSmall`
   if (cmp([0, 1], b) === Ordering.Greater) {
     return divideSmall(a, b[0], base);
   }
@@ -163,16 +170,6 @@ const divide = (a: readonly number[], b: readonly number[], base: number): Primi
   let carry = [0];
   let chop = ChopCase.BLen as ChopCase;
   do {
-    // if (isZero(carry) && cmp(aa, b) === Ordering.Less) {
-    //   // if aa < b, then we can not divide anymore
-    //   // so we just return the current quotient and carry
-    //   // carry is the remainder
-    //   for (let i = 0; i < aa.length; i++) {
-    //     quo.unshift(0);
-    //   }
-    //   break;
-    // }
-
     let dividend: number[];
     switch (chop) {
       case ChopCase.BLen:
@@ -185,26 +182,30 @@ const divide = (a: readonly number[], b: readonly number[], base: number): Primi
               remainder: aa.concat(carry),
             };
           }
-          dividend = aa.splice(aa.length - chopLen, chopLen);
+          if (isZero(carry)) {
+            dividend = aa.splice(aa.length - chopLen, chopLen);
+          } else {
+            dividend = aa.splice(aa.length - chopLen, chopLen).concat(carry);
+          }
+          unshift0(quo, chopLen - 1); // unshift 0s to quotient
         }
         break;
       case ChopCase.OneMore:
-        dividend = aa.splice(aa.length - 1, 1);
+        dividend = aa.splice(aa.length - 1, 1).concat(carry);
         break;
     }
 
-    // fixme still many things need to be fixed
     console.log(
       'dividend',
       dividend.toReversed().join(''),
-      'aa',
-      aa.toReversed().join(''),
+      ['>', '<', '='][cmp(dividend, b)],
       'b',
       b.toReversed().join(''),
+      'aa',
+      aa.toReversed().join(''),
       'carry',
       carry.toReversed().join('')
     );
-    console.log('dividend', ['>', '<', '='][cmp(dividend, b)], 'b');
 
     // start from high rank
     switch (cmp(dividend, b)) {
@@ -215,7 +216,7 @@ const divide = (a: readonly number[], b: readonly number[], base: number): Primi
         chop = ChopCase.BLen;
         break;
       case Ordering.Greater:
-        // calculate [n]/[n] or [n+1]/[n]
+        // calculate [...]/[...] or [...,1]/[...]
         {
           const qr = searchQuotient(dividend, b, base);
           quo.unshift(qr.quotient);
@@ -275,8 +276,6 @@ const searchQuotient = (
     // if lower and upper is close to each other
     // iterate them
     if (upper - lower <= 3) {
-      upper = upper === base - 1 ? upper : upper - 1;
-      lower = lower === 1 ? lower : lower + 1;
       for (let i = lower; i <= upper; i++) {
         const dividend = multiply(b, [i], base);
         const r = minus(a, dividend, base);
@@ -284,7 +283,7 @@ const searchQuotient = (
           return { quotient: i, remainder: r };
         }
       }
-      throw new Error(`Cannot find a quotient for a / b, b: ${b}, a: ${a}.`);
+      throw new Error(`Cannot find a quotient for a / b, b: ${b.join('')}, a: ${a.join('')}.`);
     }
 
     const quo = Math.floor((lower + upper) / 2);
