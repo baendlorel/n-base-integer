@@ -138,36 +138,48 @@ const multiply = (a: readonly number[], b: readonly number[], base: number) => {
 const divide = (a: readonly number[], b: readonly number[], base: number) => {
   // move this length to use vertical expression
   const len = b.length;
-  const result: number[] = [];
 
-  let aa = a.slice(a.length - len, a.length);
+  let aa = a.slice();
   const logb = Math.log(b[b.length - 1]) / Math.log(base) + b.length - 1;
-  let carry = 0;
-  // start from high rank
-  switch (cmp(aa, b)) {
-    case Ordering.Equal:
-      result.unshift(1);
-      break;
-    case Ordering.Greater:
-      // calculate [n]/[n] or [n+1]/[n]
-      {
-        // use logarithm to estimate the quotient
-        const loga = Math.log(aa[aa.length - 1]) / Math.log(base) + aa.length - 1;
-        const curQuotient = Math.floor(Math.pow(base, loga - logb));
-        for (let i = curQuotient; i < base; i++) {
-          // aa % curQuotient
-          const v = minus(aa, b * base);
+  const quo: number[] = [];
+  let carry: number[] = [0];
+
+  do {
+    const aaa = aa.splice(aa.length - len, aa.length);
+    // start from high rank
+    switch (cmp(aa, b)) {
+      case Ordering.Equal:
+        quo.unshift(1);
+        break;
+      case Ordering.Greater:
+        // calculate [n]/[n] or [n+1]/[n]
+        {
+          // use logarithm to estimate the quotient
+          const loga = Math.log(aaa[aaa.length - 1]) / Math.log(base) + aaa.length - 1;
+          const curQuotient = Math.floor(Math.pow(base, loga - logb));
+          for (let i = curQuotient; i < base; i++) {
+            // The approximated quotient would be less than the true quotient
+            // `i` satisfying `aaa - b * i < b` is the quotient
+            const v = minus(aaa, multiply(b, [i], base), base);
+            if (cmp(v, b) === Ordering.Less) {
+              quo.push(i);
+              // let carry be the remainder
+              v.unshift(0);
+              carry = v;
+              break;
+            }
+          }
         }
-      }
-      break;
-    case Ordering.Less:
-      // chop another digit and try again
-      aa.unshift(a.slice(a.length - len - 1, 1)[0]);
-      break;
-  }
-  while (aa.length > 0) {
-    const dividend = aa.splice();
-  }
+        break;
+      case Ordering.Less:
+        // chop another digit and try again
+        aaa.unshift(aa.slice(aa.length - len - 1, 1)[0]);
+        quo.push(0);
+        break;
+    }
+  } while (aa.length > 0);
+  purgeZeros(quo);
+  return { quotient: quo, remainder: carry };
 };
 
 /**
@@ -600,22 +612,9 @@ export class NBaseInteger {
 
     // & Deal |a| > |b| here
     // approximate the quotient first
-    const bq = bd.length + Math.log(bd[bd.length - 1]) / Math.log(base);
-
-    let aq = 0;
-    const logdiv = (arr: number[], base: number) => {
-      const x = Math.floor(arr.length + Math.log(ad[arr.length - 1]) / Math.log(base));
-      const y = base ** x;
-    };
-
-    let x = ad.length;
-    for (let i = ad.length - 1; i >= 0; i--) {
-      x += Math.log(ad[i]) / Math.log(base);
-    }
-    const delta = base ** (x - bq);
-    console.log('delta', delta, 'approximated quotient', base ** delta);
-
-    purgeZeros(b.#digits);
+    const qr = divide(a.#digits, b.#digits, a.#base);
+    b.#digits = qr.quotient;
+    result.remainder.#digits = qr.remainder;
     return result;
   }
 
