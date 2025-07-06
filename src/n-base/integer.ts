@@ -9,6 +9,8 @@ interface NBaseIntegerDivResult {
 }
 
 // #region primitive functions
+const isZero = (a: readonly number[]) => a.length === 1 && a[0] === 0;
+
 const cmp = (a: readonly number[], b: readonly number[]) => {
   if (a === b) {
     return Ordering.Equal;
@@ -159,14 +161,15 @@ const divide = (a: readonly number[], b: readonly number[], base: number) => {
       break;
     }
 
-    const aaa =
-      carry.length === 1 && carry[0] === 0
-        ? aa.splice(aa.length - len, aa.length)
-        : aa.splice(aa.length - len, aa.length).concat(carry);
+    // if carry === 0, chop length = len
+    // if carry !== 0 and carry.length === len, chop 1 digit and concat last carry
+    const dividend = isZero(carry)
+      ? aa.splice(aa.length - len, aa.length)
+      : aa.splice(aa.length - 1, 1).concat(carry);
 
     console.log(
       'aaa',
-      aaa.toReversed().join(''),
+      dividend.toReversed().join(''),
       'aa',
       aa.toReversed().join(''),
       'b',
@@ -174,10 +177,10 @@ const divide = (a: readonly number[], b: readonly number[], base: number) => {
       'carry',
       carry.toReversed().join('')
     );
-    console.log('cmp(aaa, b)', ['>', '<', '='][cmp(aaa, b)]);
+    console.log('cmp(aaa, b)', ['>', '<', '='][cmp(dividend, b)]);
 
     // start from high rank
-    switch (cmp(aaa, b)) {
+    switch (cmp(dividend, b)) {
       case Ordering.Equal:
         carry.length = 0;
         carry[0] = 0;
@@ -187,17 +190,21 @@ const divide = (a: readonly number[], b: readonly number[], base: number) => {
         // calculate [n]/[n] or [n+1]/[n]
         {
           // use logarithm to estimate the quotient
-          const loga = Math.log(aaa[aaa.length - 1]) / Math.log(base) + aaa.length - 1;
+          const log_ =
+            dividend.length > 1
+              ? dividend[dividend.length - 1] + dividend[dividend.length - 2] / base
+              : dividend[dividend.length - 1];
+          const loga = Math.log(log_) / Math.log(base) + dividend.length - 1;
           const curQuotient = Math.floor(Math.pow(base, loga - logb));
           for (let i = curQuotient; i < base; i++) {
             console.log('curQuo', i);
             // The approximated quotient would be less than the true quotient
             // `i` satisfying `aaa - b * i < b` is the quotient
-            const v = minus(aaa, multiply(b, [i], base), base);
+            const v = minus(dividend, multiply(b, [i], base), base);
             if (cmp(v, b) === Ordering.Less) {
               quo.unshift(i);
               // let carry be the remainder
-              if (!(v.length === 1 && v[0] === 0)) {
+              if (!isZero(v)) {
                 // if v is not zero then unshift 0
                 v.unshift(0);
               }
@@ -210,9 +217,7 @@ const divide = (a: readonly number[], b: readonly number[], base: number) => {
       case Ordering.Less:
         // chop another digit and try again
         quo.unshift(0);
-
-        carry = aaa;
-
+        carry = dividend;
         break;
     }
   } while (aa.length > 0);
@@ -386,7 +391,7 @@ export class NBaseInteger {
   }
 
   get isZero(): boolean {
-    return this.#digits.length === 1 && this.#digits[0] === 0;
+    return isZero(this.#digits);
   }
 
   get isOdd(): boolean {
@@ -699,6 +704,7 @@ export class NBaseInteger {
 
   // #endregion
 
+  // todo 把power也提升为仅仅关联于数组的基础函数
   // #region power
   static #circularPow(a: NBaseInteger, exponent: NBaseInteger): NBaseInteger {
     const res = new NBaseInteger(flag, 1, a.#base, a.#charset);

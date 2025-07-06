@@ -69,6 +69,14 @@ describe('NBaseInteger.div', () => {
     expect(c.toString()).toBe('3000');
   });
 
+  it('should handle large number division2', () => {
+    const a = NBaseInteger.from(999_9999, 10);
+    const b = NBaseInteger.from(33, 10);
+    const c = a.div(b);
+
+    expect(c.toString()).toBe('303030');
+  });
+
   it('should handle divmod with perfect division', () => {
     const a = NBaseInteger.from(144, 10);
     const b = NBaseInteger.from(12, 10);
