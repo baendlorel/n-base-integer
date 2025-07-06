@@ -1,17 +1,20 @@
-import { NAME, Ordering, charsets } from './common';
+import { MAX_BASE, NAME, Ordering, charsets } from './common';
 import { flag, protect, safeCharset, safeInt } from './expect';
-
-const MAX_BASE = 1000; // Maximum base supported by the default charset
 
 interface NBaseIntegerDivResult {
   quotient: NBaseInteger;
   remainder: NBaseInteger;
 }
 
-// #region primitive functions
-const isZero = (a: readonly number[]) => a.length === 1 && a[0] === 0;
+interface PrimitiveDivResult {
+  quotient: number[];
+  remainder: number[];
+}
 
-const cmp = (a: readonly number[], b: readonly number[]) => {
+// #region primitive functions
+const isZero = (a: readonly number[]): boolean => a.length === 1 && a[0] === 0;
+
+const cmp = (a: readonly number[], b: readonly number[]): Ordering => {
   if (a === b) {
     return Ordering.Equal;
   }
@@ -26,7 +29,7 @@ const cmp = (a: readonly number[], b: readonly number[]) => {
   return Ordering.Equal;
 };
 
-const plus = (a: readonly number[], b: readonly number[], base: number) => {
+const plus = (a: readonly number[], b: readonly number[], base: number): number[] => {
   // assure that a is longer
   if (a.length < b.length) {
     const temp = a;
@@ -62,9 +65,9 @@ const plus = (a: readonly number[], b: readonly number[], base: number) => {
 };
 
 /**
- * ! Only use when a > b
+ * ! ONLY use when a > b
  */
-const minus = (a: readonly number[], b: readonly number[], base: number) => {
+const minus = (a: readonly number[], b: readonly number[], base: number): number[] => {
   const diff: number[] = [];
   let carry = 0;
   for (let i = 0; i < b.length; i++) {
@@ -87,7 +90,7 @@ const minus = (a: readonly number[], b: readonly number[], base: number) => {
   return purgeZeros(diff);
 };
 
-const multiply = (a: readonly number[], b: readonly number[], base: number) => {
+const multiply = (a: readonly number[], b: readonly number[], base: number): number[] => {
   const rows: number[][] = [];
   let maxRowLen = 0;
   for (let i = 0; i < a.length; i++) {
@@ -129,7 +132,7 @@ const multiply = (a: readonly number[], b: readonly number[], base: number) => {
 
 /**
  * Calculate a / b
- * ! Only use when a > b
+ * ! ONLY use when a > b
  *    ___13____
  *  13) 170
  *      13
@@ -138,7 +141,9 @@ const multiply = (a: readonly number[], b: readonly number[], base: number) => {
  *        1
  * So 170 / 13 = 13 ... 1
  */
-const divide = (a: readonly number[], b: readonly number[], base: number) => {
+const divide = (a: readonly number[], b: readonly number[], base: number): PrimitiveDivResult => {
+  // & Since we already have a > b, ensuring b < base
+  // & enables us to use `divideSmall`
   if (cmp([0, 1], b) === Ordering.Greater) {
     return divideSmall(a, b[0], base);
   }
@@ -229,9 +234,9 @@ const divide = (a: readonly number[], b: readonly number[], base: number) => {
 
 /**
  * Calculate a / b
- * !Only use when a > b and base > b.
+ * ! ONLY use when a > b and base > b. (this means b is a one digit number in base `base`)
  */
-const divideSmall = (a: readonly number[], b: number, base: number) => {
+const divideSmall = (a: readonly number[], b: number, base: number): PrimitiveDivResult => {
   let carry = 0;
   const result: number[] = [];
   for (let i = a.length - 1; i >= 0; i--) {
@@ -244,11 +249,63 @@ const divideSmall = (a: readonly number[], b: number, base: number) => {
 };
 
 /**
+ * Searchi the quotient of a / b
+ * ! ONLY use when a / b is between 1 to base - 1.
+ * This causes quotient is a one digit number under base `base`.
+ * So it returns quotient as a `number`, not `number[]`
+ */
+const searchQuotient = (
+  a: readonly number[],
+  b: readonly number[],
+  base: number
+): { quotient: number; remainder: number } => {
+  // & we should always have prev >= cur
+  let lower = 1;
+  let upper = base - 1;
+  while (true) {
+    // if lower and upper is close to each other
+    // iterate them
+    if (upper - lower <= 3) {
+      upper = upper === base - 1 ? upper : upper - 1;
+      lower = lower === 1 ? lower : lower + 1;
+      for (let i = lower; i <= upper; i++) {
+        const dividend = multiply(b, [i], base);
+        const r = minus(a, dividend, base);
+        if (cmp(r, b) === Ordering.Less) {
+          return { quotient: i, remainder: r[0] };
+        }
+      }
+      throw new Error(`Cannot find a quotient for a / b, b: ${b}, a: ${a}.`);
+    }
+
+    const quo = Math.floor((lower + upper) / 2);
+    const dividend = multiply(b, [quo], base);
+    // & must have a >= q and a - q < b
+    switch (cmp(a, dividend)) {
+      case Ordering.Equal:
+        return { quotient: quo, remainder: 0 };
+      case Ordering.Less:
+        upper = quo - 1;
+        break;
+      case Ordering.Greater:
+        {
+          const r = minus(a, dividend, base);
+          if (cmp(r, b) === Ordering.Less) {
+            return { quotient: quo, remainder: r[0] };
+          }
+          lower = quo + 1;
+        }
+        break;
+    }
+  }
+};
+
+/**
  * Purge the leading zeros of an array of digits.
  * @param a
  * @returns
  */
-const purgeZeros = (a: number[]) => {
+const purgeZeros = (a: number[]): number[] => {
   for (let i = a.length - 1; i >= 0; i--) {
     if (a[i] !== 0) {
       a.length = i + 1;
