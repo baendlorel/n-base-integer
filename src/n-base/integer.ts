@@ -132,7 +132,9 @@ const multiply = (a: readonly number[], b: readonly number[], base: number): num
 
 /**
  * Calculate a / b
+ *
  * ! ONLY use when a > b
+ *
  *    ___13____
  *  13) 170
  *      13
@@ -151,13 +153,12 @@ const divide = (a: readonly number[], b: readonly number[], base: number): Primi
   // move this length to use vertical expression
   const len = b.length;
 
-  let aa = a.slice();
-  const logb = Math.log(b[b.length - 1]) / Math.log(base) + b.length - 1;
+  const aa = a.slice();
   const quo: number[] = [];
   let carry: number[] = [0];
   do {
-    if (aa.length < len) {
-      // if aa is shorter than b, then we can not divide anymore
+    if (isZero(carry) && cmp(aa, b) === Ordering.Less) {
+      // if aa < b, then we can not divide anymore
       // so we just return the current quotient and carry
       // carry is the remainder
       for (let i = 0; i < aa.length; i++) {
@@ -168,12 +169,29 @@ const divide = (a: readonly number[], b: readonly number[], base: number): Primi
 
     // if carry === 0, chop length = len
     // if carry !== 0 and carry.length === len, chop 1 digit and concat last carry
-    const dividend = isZero(carry)
-      ? aa.splice(aa.length - len, aa.length)
-      : aa.splice(aa.length - 1, 1).concat(carry);
+    let unshifts = 0;
+
+    let dividend: number[];
+    if (isZero(carry)) {
+      dividend = aa.splice(aa.length - len, len);
+      unshifts = len - 1;
+    } else if (carry.length < len) {
+      // Aim: spliced.length + carry.length = len
+      const chopLen = len - carry.length;
+      // & whether the dividend is big enough, is dealt with cmp(dividend, b)
+      dividend = aa.splice(aa.length - chopLen, chopLen).concat(carry);
+      unshifts = chopLen - 1;
+    } else {
+      dividend = aa.splice(aa.length - 1, 1).concat(carry);
+      unshifts = 0;
+    }
+
+    for (let i = 0; i < unshifts; i++) {
+      quo.unshift(0);
+    }
 
     console.log(
-      'aaa',
+      'dividend',
       dividend.toReversed().join(''),
       'aa',
       aa.toReversed().join(''),
@@ -182,7 +200,7 @@ const divide = (a: readonly number[], b: readonly number[], base: number): Primi
       'carry',
       carry.toReversed().join('')
     );
-    console.log('cmp(aaa, b)', ['>', '<', '='][cmp(dividend, b)]);
+    console.log('dividend', ['>', '<', '='][cmp(dividend, b)], 'b');
 
     // start from high rank
     switch (cmp(dividend, b)) {
@@ -194,29 +212,9 @@ const divide = (a: readonly number[], b: readonly number[], base: number): Primi
       case Ordering.Greater:
         // calculate [n]/[n] or [n+1]/[n]
         {
-          // use logarithm to estimate the quotient
-          const log_ =
-            dividend.length > 1
-              ? dividend[dividend.length - 1] + dividend[dividend.length - 2] / base
-              : dividend[dividend.length - 1];
-          const loga = Math.log(log_) / Math.log(base) + dividend.length - 1;
-          const curQuotient = Math.floor(Math.pow(base, loga - logb));
-          for (let i = curQuotient; i < base; i++) {
-            console.log('curQuo', i);
-            // The approximated quotient would be less than the true quotient
-            // `i` satisfying `aaa - b * i < b` is the quotient
-            const v = minus(dividend, multiply(b, [i], base), base);
-            if (cmp(v, b) === Ordering.Less) {
-              quo.unshift(i);
-              // let carry be the remainder
-              if (!isZero(v)) {
-                // if v is not zero then unshift 0
-                v.unshift(0);
-              }
-              carry = v;
-              break;
-            }
-          }
+          const qr = searchQuotient(dividend, b, base);
+          quo.unshift(qr.quotient);
+          carry = qr.remainder;
         }
         break;
       case Ordering.Less:
@@ -226,14 +224,17 @@ const divide = (a: readonly number[], b: readonly number[], base: number): Primi
         break;
     }
   } while (aa.length > 0);
+
   purgeZeros(quo);
   purgeZeros(carry);
+
   console.log({ quo, carry });
   return { quotient: quo, remainder: carry };
 };
 
 /**
  * Calculate a / b
+ *
  * ! ONLY use when a > b and base > b. (this means b is a one digit number in base `base`)
  */
 const divideSmall = (a: readonly number[], b: number, base: number): PrimitiveDivResult => {
@@ -250,7 +251,9 @@ const divideSmall = (a: readonly number[], b: number, base: number): PrimitiveDi
 
 /**
  * Searchi the quotient of a / b
+ *
  * ! ONLY use when a / b is between 1 to base - 1.
+ *
  * This causes quotient is a one digit number under base `base`.
  * So it returns quotient as a `number`, not `number[]`
  */
@@ -258,7 +261,7 @@ const searchQuotient = (
   a: readonly number[],
   b: readonly number[],
   base: number
-): { quotient: number; remainder: number } => {
+): { quotient: number; remainder: number[] } => {
   // & we should always have prev >= cur
   let lower = 1;
   let upper = base - 1;
@@ -272,7 +275,7 @@ const searchQuotient = (
         const dividend = multiply(b, [i], base);
         const r = minus(a, dividend, base);
         if (cmp(r, b) === Ordering.Less) {
-          return { quotient: i, remainder: r[0] };
+          return { quotient: i, remainder: r };
         }
       }
       throw new Error(`Cannot find a quotient for a / b, b: ${b}, a: ${a}.`);
@@ -283,7 +286,7 @@ const searchQuotient = (
     // & must have a >= q and a - q < b
     switch (cmp(a, dividend)) {
       case Ordering.Equal:
-        return { quotient: quo, remainder: 0 };
+        return { quotient: quo, remainder: [0] };
       case Ordering.Less:
         upper = quo - 1;
         break;
@@ -291,7 +294,7 @@ const searchQuotient = (
         {
           const r = minus(a, dividend, base);
           if (cmp(r, b) === Ordering.Less) {
-            return { quotient: quo, remainder: r[0] };
+            return { quotient: quo, remainder: r };
           }
           lower = quo + 1;
         }

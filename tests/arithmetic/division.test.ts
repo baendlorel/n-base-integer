@@ -25,14 +25,15 @@ describe('NBaseInteger.div', () => {
     expect(b.toString()).toBe('7');
   });
 
-  it('should div  256 by 32 correctly', () => {
-    const a = NBaseInteger.from(256, 10);
+  it('should calculate 257 / 32 correctly', () => {
+    const a = NBaseInteger.from(257, 10);
     const b = NBaseInteger.from(32, 10);
-    const c = a.div(b);
+    const c = a.divmod(b);
 
-    expect(c.toString()).toBe('8');
+    expect(c.quotient.toString()).toBe('8');
+    expect(c.remainder.toString()).toBe('1');
     // Ensure immutability
-    expect(a.toString()).toBe('256');
+    expect(a.toString()).toBe('257');
     expect(b.toString()).toBe('32');
   });
 
