@@ -1,4 +1,4 @@
-import { MAX_BASE, NAME, Ordering, charsets } from './common';
+import { MAX_BASE, NAME, Ordering, charsets, unshift0 } from './common';
 import { flag, protect, safeCharset, safeInt } from './expect';
 
 interface NBaseIntegerDivResult {
@@ -130,6 +130,11 @@ const multiply = (a: readonly number[], b: readonly number[], base: number): num
   return result;
 };
 
+const enum ChopCase {
+  OneMore,
+  BLen,
+}
+
 /**
  * Calculate a / b
  *
@@ -155,41 +160,40 @@ const divide = (a: readonly number[], b: readonly number[], base: number): Primi
 
   const aa = a.slice();
   const quo: number[] = [];
-  let carry: number[] = [0];
+  let carry = [0];
+  let chop = ChopCase.BLen as ChopCase;
   do {
-    if (isZero(carry) && cmp(aa, b) === Ordering.Less) {
-      // if aa < b, then we can not divide anymore
-      // so we just return the current quotient and carry
-      // carry is the remainder
-      for (let i = 0; i < aa.length; i++) {
-        quo.unshift(0);
-      }
-      break;
-    }
-
-    // if carry === 0, chop length = len
-    // if carry !== 0 and carry.length === len, chop 1 digit and concat last carry
-    let unshifts = 0;
+    // if (isZero(carry) && cmp(aa, b) === Ordering.Less) {
+    //   // if aa < b, then we can not divide anymore
+    //   // so we just return the current quotient and carry
+    //   // carry is the remainder
+    //   for (let i = 0; i < aa.length; i++) {
+    //     quo.unshift(0);
+    //   }
+    //   break;
+    // }
 
     let dividend: number[];
-    if (isZero(carry)) {
-      dividend = aa.splice(aa.length - len, len);
-      unshifts = len - 1;
-    } else if (carry.length < len) {
-      // Aim: spliced.length + carry.length = len
-      const chopLen = len - carry.length;
-      // & whether the dividend is big enough, is dealt with cmp(dividend, b)
-      dividend = aa.splice(aa.length - chopLen, chopLen).concat(carry);
-      unshifts = chopLen - 1;
-    } else {
-      dividend = aa.splice(aa.length - 1, 1).concat(carry);
-      unshifts = 0;
+    switch (chop) {
+      case ChopCase.BLen:
+        {
+          const chopLen = isZero(carry) ? len : len - carry.length;
+          if (chopLen > aa.length) {
+            // not enough for further dividing
+            return {
+              quotient: unshift0(quo, aa.length),
+              remainder: aa.concat(carry),
+            };
+          }
+          dividend = aa.splice(aa.length - chopLen, chopLen);
+        }
+        break;
+      case ChopCase.OneMore:
+        dividend = aa.splice(aa.length - 1, 1);
+        break;
     }
 
-    for (let i = 0; i < unshifts; i++) {
-      quo.unshift(0);
-    }
-
+    // fixme still many things need to be fixed
     console.log(
       'dividend',
       dividend.toReversed().join(''),
@@ -205,9 +209,10 @@ const divide = (a: readonly number[], b: readonly number[], base: number): Primi
     // start from high rank
     switch (cmp(dividend, b)) {
       case Ordering.Equal:
-        carry.length = 0;
+        carry.length = 1;
         carry[0] = 0;
         quo.unshift(1);
+        chop = ChopCase.BLen;
         break;
       case Ordering.Greater:
         // calculate [n]/[n] or [n+1]/[n]
@@ -216,11 +221,12 @@ const divide = (a: readonly number[], b: readonly number[], base: number): Primi
           quo.unshift(qr.quotient);
           carry = qr.remainder;
         }
+        chop = ChopCase.BLen;
         break;
       case Ordering.Less:
         // chop another digit and try again
-        quo.unshift(0);
         carry = dividend;
+        chop = ChopCase.OneMore;
         break;
     }
   } while (aa.length > 0);

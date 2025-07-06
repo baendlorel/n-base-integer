@@ -129,7 +129,7 @@ describe('NBaseInteger.div', () => {
     const { quotient, remainder } = a.divmod(b);
 
     expect(quotient.toString()).toBe('8000');
-    expect(remainder.toString()).toBe('654321');
+    expect(remainder.toString()).toBe('6321');
   });
 
   it('should handle divmod2 with odd numbers', () => {

@@ -107,3 +107,16 @@ export const charsets = {
     return newCharset;
   },
 };
+
+/**
+ * ! If a is [] or a is [0], return [0].
+ */
+export const unshift0 = (a: number[], count: number) => {
+  if (a.length === 0) {
+    return [0];
+  }
+  for (let i = 0; i < count; i++) {
+    a.unshift(0);
+  }
+  return a;
+};
