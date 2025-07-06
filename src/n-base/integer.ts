@@ -126,6 +126,7 @@ const multiply = (a: readonly number[], b: readonly number[], base: number) => {
 };
 
 /**
+ * Calculate a / b
  * ! Only use when a > b
  *    ___13____
  *  13) 170
@@ -136,6 +137,10 @@ const multiply = (a: readonly number[], b: readonly number[], base: number) => {
  * So 170 / 13 = 13 ... 1
  */
 const divide = (a: readonly number[], b: readonly number[], base: number) => {
+  if (cmp([0, 1], b) === Ordering.Greater) {
+    return divideSmall(a, b[0], base);
+  }
+
   // move this length to use vertical expression
   const len = b.length;
 
@@ -180,6 +185,22 @@ const divide = (a: readonly number[], b: readonly number[], base: number) => {
   } while (aa.length > 0);
   purgeZeros(quo);
   return { quotient: quo, remainder: carry };
+};
+
+/**
+ * Calculate a / b
+ * !Only use when a > b and base > b.
+ */
+const divideSmall = (a: readonly number[], b: number, base: number) => {
+  let carry = 0;
+  const result: number[] = [];
+  for (let i = a.length - 1; i >= 0; i--) {
+    const v = a[i] + carry * base;
+    result.unshift(Math.floor(v / b));
+    carry = v % b;
+  }
+  purgeZeros(result);
+  return { quotient: result, remainder: carry };
 };
 
 /**
