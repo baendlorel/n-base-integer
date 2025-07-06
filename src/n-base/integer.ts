@@ -148,12 +148,39 @@ const divide = (a: readonly number[], b: readonly number[], base: number) => {
   const logb = Math.log(b[b.length - 1]) / Math.log(base) + b.length - 1;
   const quo: number[] = [];
   let carry: number[] = [0];
-
   do {
-    const aaa = aa.splice(aa.length - len, aa.length);
+    if (aa.length < len) {
+      // if aa is shorter than b, then we can not divide anymore
+      // so we just return the current quotient and carry
+      // carry is the remainder
+      for (let i = 0; i < aa.length; i++) {
+        quo.unshift(0);
+      }
+      break;
+    }
+
+    const aaa =
+      carry.length === 1 && carry[0] === 0
+        ? aa.splice(aa.length - len, aa.length)
+        : aa.splice(aa.length - len, aa.length).concat(carry);
+
+    console.log(
+      'aaa',
+      aaa.toReversed().join(''),
+      'aa',
+      aa.toReversed().join(''),
+      'b',
+      b.toReversed().join(''),
+      'carry',
+      carry.toReversed().join('')
+    );
+    console.log('cmp(aaa, b)', ['>', '<', '='][cmp(aaa, b)]);
+
     // start from high rank
-    switch (cmp(aa, b)) {
+    switch (cmp(aaa, b)) {
       case Ordering.Equal:
+        carry.length = 0;
+        carry[0] = 0;
         quo.unshift(1);
         break;
       case Ordering.Greater:
@@ -163,13 +190,17 @@ const divide = (a: readonly number[], b: readonly number[], base: number) => {
           const loga = Math.log(aaa[aaa.length - 1]) / Math.log(base) + aaa.length - 1;
           const curQuotient = Math.floor(Math.pow(base, loga - logb));
           for (let i = curQuotient; i < base; i++) {
+            console.log('curQuo', i);
             // The approximated quotient would be less than the true quotient
             // `i` satisfying `aaa - b * i < b` is the quotient
             const v = minus(aaa, multiply(b, [i], base), base);
             if (cmp(v, b) === Ordering.Less) {
-              quo.push(i);
+              quo.unshift(i);
               // let carry be the remainder
-              v.unshift(0);
+              if (!(v.length === 1 && v[0] === 0)) {
+                // if v is not zero then unshift 0
+                v.unshift(0);
+              }
               carry = v;
               break;
             }
@@ -178,12 +209,16 @@ const divide = (a: readonly number[], b: readonly number[], base: number) => {
         break;
       case Ordering.Less:
         // chop another digit and try again
-        aaa.unshift(aa.slice(aa.length - len - 1, 1)[0]);
-        quo.push(0);
+        quo.unshift(0);
+
+        carry = aaa;
+
         break;
     }
   } while (aa.length > 0);
   purgeZeros(quo);
+  purgeZeros(carry);
+  console.log({ quo, carry });
   return { quotient: quo, remainder: carry };
 };
 
@@ -200,7 +235,7 @@ const divideSmall = (a: readonly number[], b: number, base: number) => {
     carry = v % b;
   }
   purgeZeros(result);
-  return { quotient: result, remainder: carry };
+  return { quotient: result, remainder: [carry] };
 };
 
 /**
@@ -610,7 +645,6 @@ export class NBaseInteger {
     // div abs
     const ad = a.#digits.slice();
     const bd = b.#digits;
-    const base = a.base;
     const resultNegative = a.#negative !== b.#negative;
 
     // simple situations
@@ -644,7 +678,6 @@ export class NBaseInteger {
   divmod(arg: number | NBaseInteger): NBaseIntegerDivResult {
     const other = NBaseInteger.#clone(this.#safeOther(arg));
     const result = NBaseInteger.#divAToB(this, other);
-    console.log(result);
     return result;
   }
 
@@ -653,7 +686,6 @@ export class NBaseInteger {
   div(arg: number | NBaseInteger): NBaseInteger {
     const other = NBaseInteger.#clone(this.#safeOther(arg));
     const result = NBaseInteger.#divAToB(this, other);
-    console.log(result);
     return result.quotient;
   }
 
@@ -662,7 +694,6 @@ export class NBaseInteger {
   mod(arg: number | NBaseInteger): NBaseInteger {
     const other = NBaseInteger.#clone(this.#safeOther(arg));
     const result = NBaseInteger.#divAToB(this, other);
-    console.log(result);
     return result.remainder;
   }
 
