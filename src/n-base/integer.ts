@@ -85,6 +85,46 @@ const minus = (a: readonly number[], b: readonly number[], base: number) => {
   return purgeZeros(diff);
 };
 
+const multiply = (a: readonly number[], b: readonly number[], base: number) => {
+  const rows: number[][] = [];
+  let maxRowLen = 0;
+  for (let i = 0; i < a.length; i++) {
+    const row: number[] = new Array(i); // create a row for the result
+    row.fill(0); // fill with zeros
+    rows.push(row);
+    let carry = 0;
+    const ai = a[i];
+    for (let j = 0; j < b.length; j++) {
+      const v = ai * b[j] + carry;
+      row.push(v % base); // store the result in b
+      carry = Math.floor(v / base); // calculate the carry
+    }
+    if (carry > 0) {
+      row.push(carry);
+    }
+    maxRowLen = Math.max(maxRowLen, row.length);
+  }
+
+  // add all rows together
+  const result: number[] = [];
+  {
+    let carry = 0;
+    for (let i = 0; i < maxRowLen; i++) {
+      let v = carry;
+      for (let j = 0; j < rows.length; j++) {
+        v += rows[j][i] ?? 0;
+      }
+      carry = Math.floor(v / base);
+      result[i] = v % base;
+    }
+    if (carry > 0) {
+      result.push(carry);
+    }
+  }
+  purgeZeros(result);
+  return result;
+};
+
 /**
  * ! Only use when a > b
  *    ___13____
@@ -101,6 +141,7 @@ const divide = (a: readonly number[], b: readonly number[], base: number) => {
   const result: number[] = [];
 
   let aa = a.slice(a.length - len, a.length);
+  const logb = Math.log(b[b.length - 1]) / Math.log(base) + b.length - 1;
   let carry = 0;
   // start from high rank
   switch (cmp(aa, b)) {
@@ -108,9 +149,15 @@ const divide = (a: readonly number[], b: readonly number[], base: number) => {
       result.unshift(1);
       break;
     case Ordering.Greater:
-      // process div
-      for (let i = 2; i < base; i++) {
-        // mul
+      // calculate [n]/[n] or [n+1]/[n]
+      {
+        // use logarithm to estimate the quotient
+        const loga = Math.log(aa[aa.length - 1]) / Math.log(base) + aa.length - 1;
+        const curQuotient = Math.floor(Math.pow(base, loga - logb));
+        for (let i = curQuotient; i < base; i++) {
+          // aa % curQuotient
+          const v = minus(aa, b * base);
+        }
       }
       break;
     case Ordering.Less:
@@ -457,47 +504,8 @@ export class NBaseInteger {
    * @param b The second operand (result stored here).
    */
   static #mulAToB(a: NBaseInteger, b: NBaseInteger): NBaseInteger {
-    const ad = a.#digits.slice();
-    const bd = b.#digits; // because b will change, there is no need to slice.
-    const base = a.base;
-
-    // same sign -> positive
     b.#negative = a.#negative !== b.#negative;
-    const rows: number[][] = [];
-    let maxRowLen = 0;
-    for (let i = 0; i < ad.length; i++) {
-      const row: number[] = new Array(i); // create a row for the result
-      row.fill(0); // fill with zeros
-      rows.push(row);
-      let carry = 0;
-      const ai = ad[i];
-      for (let j = 0; j < bd.length; j++) {
-        const v = ai * bd[j] + carry;
-        row.push(v % base); // store the result in b
-        carry = Math.floor(v / base); // calculate the carry
-      }
-      if (carry > 0) {
-        row.push(carry);
-      }
-      maxRowLen = Math.max(maxRowLen, row.length);
-    }
-
-    // add all rows together
-    {
-      let carry = 0;
-      for (let i = 0; i < maxRowLen; i++) {
-        let v = carry;
-        for (let j = 0; j < rows.length; j++) {
-          v += rows[j][i] ?? 0;
-        }
-        carry = Math.floor(v / base);
-        bd[i] = v % base;
-      }
-      if (carry > 0) {
-        bd.push(carry);
-      }
-    }
-    purgeZeros(bd);
+    b.#digits = multiply(a.#digits, b.#digits, a.#base);
     return b;
   }
 
