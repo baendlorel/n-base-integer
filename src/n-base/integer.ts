@@ -1,5 +1,6 @@
-import { MAX_BASE, NAME, Ordering, charsets, unshift0 } from './common';
-import { flag, protect, safeCharset, safeInt } from './expect';
+import { Ordering, MAX_BASE, NAME, Flag } from './consts';
+import { charsets, unshift0 } from './common';
+import { protect, safeCharset, safeInt } from './expect';
 
 interface NBaseIntegerDivResult {
   quotient: NBaseInteger;
@@ -380,13 +381,13 @@ export class NBaseInteger {
           `Given base > ${dc.length}. Default charset is not enough, either set it or specify another charset.`
         );
       }
-      return new NBaseInteger(flag, n, base, dc);
+      return new NBaseInteger(Flag.PRIVATE, n, base, dc);
     }
 
     // create with custom charset
     if (typeof arg === 'string') {
       const charset = safeCharset(arg);
-      return new NBaseInteger(flag, n, charset.length, charsets.get(charset));
+      return new NBaseInteger(Flag.PRIVATE, n, charset.length, charsets.get(charset));
     }
 
     throw new TypeError('Expect 2nd parameter to be a base or a charset.');
@@ -411,29 +412,18 @@ export class NBaseInteger {
   }
 
   /**
-   * Clone an NBaseInteger instance.
-   * @param priv Internal symbol for access control.
-   * @param a The instance to clone.
-   */
-  static #clone(a: NBaseInteger): NBaseInteger {
-    const clone = new NBaseInteger(flag, a.sgn, a.#base, a.#charset);
-    clone.#digits = a.#digits.slice();
-    return clone;
-  }
-
-  /**
    * Ensure argument is a valid NBaseInteger or number.
    * - will create an NBaseInteger when `arg` is a number.
    * - will return `arg` directly when it is already an NBaseInteger
-   * @param priv Internal symbol for access control.
+   *
    * @param arg The argument to check.
-   * @param clone Whether to clone the instance.
+   * @param clone default is `false`. Whether to clone the instance.
    */
-  #safeOther(arg: number | NBaseInteger): NBaseInteger {
+  #safeOther(arg: number | NBaseInteger, clone?: symbol): NBaseInteger {
     // b is a normal number
     if (typeof arg === 'number') {
       const n = safeInt(arg);
-      return new NBaseInteger(flag, n, this.#base, this.#charset);
+      return new NBaseInteger(Flag.PRIVATE, n, this.#base, this.#charset);
     }
 
     // b is also an NBaseInteger
@@ -451,7 +441,7 @@ export class NBaseInteger {
       if (nbi.#charset !== this.#charset) {
         throw new TypeError(`Called with a ${NAME} with different charset.`);
       }
-      return nbi;
+      return clone === Flag.CLONE ? nbi.clone() : nbi;
     }
     throw new TypeError(`Called with an invalid argument. Expected number or ${NAME}.`);
   }
@@ -547,7 +537,7 @@ export class NBaseInteger {
   /**
    * This functions means `b = a + b`
    * - `a.#digits` is copied, so it is safe to call like `a.add(a)`.
-   * @param priv Internal symbol for access control.
+   *
    * @param a The first operand.
    * @param b The second operand (result stored here).
    */
@@ -585,7 +575,7 @@ export class NBaseInteger {
   add(nbi: NBaseInteger): NBaseInteger;
   add(n: number): NBaseInteger;
   add(arg: number | NBaseInteger): NBaseInteger {
-    const other = NBaseInteger.#clone(this.#safeOther(arg));
+    const other = this.#safeOther(arg, Flag.CLONE);
     return NBaseInteger.#addAToB(this, other);
   }
 
@@ -599,8 +589,8 @@ export class NBaseInteger {
   sub(nbi: NBaseInteger): NBaseInteger;
   sub(n: number): NBaseInteger;
   sub(arg: number | NBaseInteger): NBaseInteger {
-    const other = NBaseInteger.#clone(this.#safeOther(arg));
-    other.oppAssign();
+    const other = this.#safeOther(arg, Flag.CLONE);
+    other.negateAssign();
     return NBaseInteger.#addAToB(this, other);
   }
 
@@ -608,9 +598,9 @@ export class NBaseInteger {
   subAssign(n: number): NBaseInteger;
   subAssign(arg: number | NBaseInteger): NBaseInteger {
     const other = this.#safeOther(arg);
-    other.oppAssign();
+    other.negateAssign();
     NBaseInteger.#addAToB(other, this);
-    other.oppAssign();
+    other.negateAssign();
     return this;
   }
   // #endregion
@@ -663,7 +653,7 @@ export class NBaseInteger {
   /**
    * This functions means `b = a * b`
    * - `a.#digits` is copied, so it is safe to call like `a.mul(a)`.
-   * @param priv Internal symbol for access control.
+   *
    * @param a The first operand.
    * @param b The second operand (result stored here).
    */
@@ -676,7 +666,7 @@ export class NBaseInteger {
   mul(nbi: NBaseInteger): NBaseInteger;
   mul(n: number): NBaseInteger;
   mul(arg: number | NBaseInteger): NBaseInteger {
-    const other = NBaseInteger.#clone(this.#safeOther(arg));
+    const other = this.#safeOther(arg, Flag.CLONE);
     return NBaseInteger.#mulAToB(this, other);
   }
 
@@ -693,8 +683,8 @@ export class NBaseInteger {
     const base = this.#base;
     if (this.isZero) {
       return {
-        quotient: new NBaseInteger(flag, 0, base, this.#charset),
-        remainder: new NBaseInteger(flag, 0, base, this.#charset),
+        quotient: new NBaseInteger(Flag.PRIVATE, 0, base, this.#charset),
+        remainder: new NBaseInteger(Flag.PRIVATE, 0, base, this.#charset),
       };
     }
 
@@ -706,12 +696,12 @@ export class NBaseInteger {
       const v = Math.floor(ad[0] / 2);
       const r = ad[0] - v * 2;
       return {
-        quotient: new NBaseInteger(flag, v, base, this.#charset),
-        remainder: new NBaseInteger(flag, r, base, this.#charset),
+        quotient: new NBaseInteger(Flag.PRIVATE, v, base, this.#charset),
+        remainder: new NBaseInteger(Flag.PRIVATE, r, base, this.#charset),
       };
     }
 
-    const quotient = new NBaseInteger(flag, 0, base, this.#charset);
+    const quotient = new NBaseInteger(Flag.PRIVATE, 0, base, this.#charset);
     // divide by 2
     let carry = 0;
     for (let i = ad.length - 1; i >= 0; i--) {
@@ -720,7 +710,7 @@ export class NBaseInteger {
       carry = dividend - q * 2;
       quotient.#digits.unshift(q);
     }
-    const remainder = new NBaseInteger(flag, carry, base, this.#charset);
+    const remainder = new NBaseInteger(Flag.PRIVATE, carry, base, this.#charset);
 
     purgeZeros(quotient.#digits);
     return { quotient, remainder };
@@ -735,10 +725,13 @@ export class NBaseInteger {
     }
     if (a.isZero) {
       b.zero();
-      return { quotient: b, remainder: new NBaseInteger(flag, 0, a.#base, a.#charset) };
+      return { quotient: b, remainder: new NBaseInteger(Flag.PRIVATE, 0, a.#base, a.#charset) };
     }
 
-    const result = { quotient: b, remainder: new NBaseInteger(flag, 0, a.#base, a.#charset) };
+    const result = {
+      quotient: b,
+      remainder: new NBaseInteger(Flag.PRIVATE, 0, a.#base, a.#charset),
+    };
     const qr = divide(a.#digits, b.#digits, a.#base);
     b.#digits = qr.quotient;
     b.#negative = a.#negative !== b.#negative;
@@ -749,7 +742,7 @@ export class NBaseInteger {
   divmod(nbi: NBaseInteger): NBaseIntegerDivResult;
   divmod(n: number): NBaseIntegerDivResult;
   divmod(arg: number | NBaseInteger): NBaseIntegerDivResult {
-    const other = NBaseInteger.#clone(this.#safeOther(arg));
+    const other = this.#safeOther(arg, Flag.CLONE);
     const result = NBaseInteger.#divAToB(this, other);
     return result;
   }
@@ -757,7 +750,7 @@ export class NBaseInteger {
   div(nbi: NBaseInteger): NBaseInteger;
   div(n: number): NBaseInteger;
   div(arg: number | NBaseInteger): NBaseInteger {
-    const other = NBaseInteger.#clone(this.#safeOther(arg));
+    const other = this.#safeOther(arg, Flag.CLONE);
     const result = NBaseInteger.#divAToB(this, other);
     return result.quotient;
   }
@@ -765,7 +758,7 @@ export class NBaseInteger {
   divAssign(nbi: NBaseInteger): NBaseInteger;
   divAssign(n: number): NBaseInteger;
   divAssign(arg: number | NBaseInteger): NBaseInteger {
-    const other = NBaseInteger.#clone(this.#safeOther(arg));
+    const other = this.#safeOther(arg, Flag.CLONE);
     const result = NBaseInteger.#divAToB(this, other);
     this.#digits = result.quotient.#digits;
     this.#negative = result.quotient.#negative;
@@ -775,7 +768,7 @@ export class NBaseInteger {
   mod(nbi: NBaseInteger): NBaseInteger;
   mod(n: number): NBaseInteger;
   mod(arg: number | NBaseInteger): NBaseInteger {
-    const other = NBaseInteger.#clone(this.#safeOther(arg));
+    const other = this.#safeOther(arg, Flag.CLONE);
     const result = NBaseInteger.#divAToB(this, other);
     return result.remainder;
   }
@@ -783,7 +776,7 @@ export class NBaseInteger {
   modAssign(nbi: NBaseInteger): NBaseInteger;
   modAssign(n: number): NBaseInteger;
   modAssign(arg: number | NBaseInteger): NBaseInteger {
-    const other = NBaseInteger.#clone(this.#safeOther(arg));
+    const other = this.#safeOther(arg, Flag.CLONE);
     const result = NBaseInteger.#divAToB(this, other);
     this.#digits = result.remainder.#digits;
     this.#negative = result.remainder.#negative;
@@ -800,7 +793,7 @@ export class NBaseInteger {
    * @param b The exponent.
    */
   static #pow(a: NBaseInteger, b: NBaseInteger): NBaseInteger {
-    const result = new NBaseInteger(flag, 0, a.#base, a.#charset);
+    const result = new NBaseInteger(Flag.PRIVATE, 0, a.#base, a.#charset);
     result.#digits = pow(a.#digits, b.#digits, a.#base);
     result.#negative = a.#negative && b.isOdd;
     return result;
@@ -813,7 +806,7 @@ export class NBaseInteger {
    * @param b The exponent in 10-base.
    */
   static #powWith10Base(a: NBaseInteger, b: number): NBaseInteger {
-    const result = new NBaseInteger(flag, 0, a.#base, a.#charset);
+    const result = new NBaseInteger(Flag.PRIVATE, 0, a.#base, a.#charset);
     result.#digits = powWith10Base(a.#digits, b, a.#base);
     result.#negative = a.#negative && b % 2 === 1;
     return result;
@@ -828,10 +821,10 @@ export class NBaseInteger {
         throw new RangeError('Exponent must be non-negative.');
       }
       if (b === 0) {
-        return new NBaseInteger(flag, 1, this.#base, this.#charset); // a^0 = 1
+        return new NBaseInteger(Flag.PRIVATE, 1, this.#base, this.#charset); // a^0 = 1
       }
       if (this.isZero) {
-        return new NBaseInteger(flag, 0, this.#base, this.#charset); // a^0 = 1
+        return new NBaseInteger(Flag.PRIVATE, 0, this.#base, this.#charset); // a^0 = 1
       }
       return NBaseInteger.#powWith10Base(this, arg);
     }
@@ -842,10 +835,10 @@ export class NBaseInteger {
         throw new RangeError('Exponent must be non-negative.');
       }
       if (b.isZero) {
-        return new NBaseInteger(flag, 1, this.#base, this.#charset); // a^0 = 1
+        return new NBaseInteger(Flag.PRIVATE, 1, this.#base, this.#charset); // a^0 = 1
       }
       if (this.isZero) {
-        return new NBaseInteger(flag, 0, this.#base, this.#charset); // a^0 = 1
+        return new NBaseInteger(Flag.PRIVATE, 0, this.#base, this.#charset); // a^0 = 1
       }
       return NBaseInteger.#pow(this, arg);
     }
@@ -855,44 +848,66 @@ export class NBaseInteger {
   // #endregion
 
   // #region signs
-  oppAssign() {
-    this.#negative = !this.#negative;
+  setSign(sgn: -1 | 0 | 1): NBaseInteger {
+    switch (sgn) {
+      case -1:
+        if (this.isZero) {
+          throw new RangeError('Cannot set sign of zero to negative.');
+        }
+        this.#negative = true;
+        break;
+      case 1:
+        this.#negative = false;
+        break;
+      case 0:
+        this.zero();
+        break;
+      default:
+        throw new TypeError(`Invalid sign: ${sgn}. Expected -1, 0 or 1.`);
+        break;
+    }
     return this;
   }
 
-  negAssign() {
+  /**
+   * Get the additive inverse of this number
+   *
+   * @example
+   * NBaseInteger(5).negate() -> NBaseInteger(-5)
+   * NBaseInteger(0).negate() -> NBaseInteger(0)
+   */
+  negate(): NBaseInteger {
+    const other = this.clone();
+    if (!other.isZero) {
+      other.#negative = !other.#negative;
+    }
+    return other;
+  }
+
+  negateAssign(): NBaseInteger {
+    if (!this.isZero) {
+      this.#negative = !this.#negative;
+    }
+    return this;
+  }
+
+  abs(): NBaseInteger {
+    const other = this.clone();
+    other.#negative = true;
+    return other;
+  }
+
+  absAssign(): NBaseInteger {
     this.#negative = true;
     return this;
   }
 
-  posAssign() {
-    this.#negative = false;
-    return this;
-  }
-
-  opp() {
-    const b = NBaseInteger.#clone(this);
-    b.#negative = !b.#negative;
-    return b;
-  }
-
-  neg() {
-    const b = NBaseInteger.#clone(this);
-    b.#negative = true;
-    return b;
-  }
-
-  pos() {
-    const b = NBaseInteger.#clone(this);
-    b.#negative = false;
-    return b;
-  }
   // #endregion
 
   // #region comparisons
   /**
    * Compare two NBaseInteger instances.
-   * @param priv Internal symbol for access control.
+   *
    * @param a The first operand.
    * @param b The second operand.
    */
@@ -927,7 +942,7 @@ export class NBaseInteger {
 
   /**
    * Compare this instance with another.
-   * @param priv Internal symbol for access control.
+   *
    * @param arg The value to compare with.
    */
   #cmp(arg: number | NBaseInteger): Ordering {
@@ -937,7 +952,7 @@ export class NBaseInteger {
 
   /**
    * Compare this instance with another ignoring sign.
-   * @param priv Internal symbol for access control.
+   *
    * @param arg The value to compare with.
    */
   #cmpAbs(arg: number | NBaseInteger): Ordering {
@@ -1035,7 +1050,10 @@ export class NBaseInteger {
   }
 
   clone() {
-    return NBaseInteger.#clone(this);
+    // Here, this.sgn gives the value of #negative
+    const clone = new NBaseInteger(Flag.PRIVATE, this.sgn, this.#base, this.#charset);
+    clone.#digits = this.#digits.slice();
+    return clone;
   }
 
   toString(): string {
@@ -1044,18 +1062,6 @@ export class NBaseInteger {
       .reverse()
       .join('');
     return `${this.#negative ? '-' : ''}${abs}`;
-  }
-
-  // # test
-  // todo remove this from production code
-  get data() {
-    return {
-      w: 'test only method',
-      base: this.#base,
-      digits: this.#digits.slice(),
-      negative: this.#negative,
-      charsets: this.#charset.slice(),
-    };
   }
   // #endregion
 }

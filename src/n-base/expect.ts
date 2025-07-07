@@ -1,7 +1,4 @@
-/**
- * Symbol used as a private flag for internal access control.
- */
-export const flag = Symbol();
+import { Flag } from './consts';
 
 /**
  * Throws an error if the provided flag does not match the internal flag.
@@ -9,7 +6,7 @@ export const flag = Symbol();
  * @param msg The error message to throw if the flag does not match.
  */
 export const protect = (privateFlag: symbol, msg = `This method is prohibited from calling.`) => {
-  if (privateFlag !== flag) {
+  if (privateFlag !== Flag.PRIVATE) {
     throw new Error(msg);
   }
 };
