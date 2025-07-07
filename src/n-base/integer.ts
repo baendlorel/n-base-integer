@@ -131,15 +131,10 @@ const multiply = (a: readonly number[], b: readonly number[], base: number): num
   return result;
 };
 
-const enum ChopCase {
-  OneMore,
-  BLen,
-}
-
 /**
  * Calculate a / b
  *
- * ! ONLY use when a > b
+ * * Can be used without considering a >，= or < b
  *
  *    ___13____
  *  13) 170
@@ -150,71 +145,35 @@ const enum ChopCase {
  * So 170 / 13 = 13 ... 1
  */
 const divide = (a: readonly number[], b: readonly number[], base: number): PrimitiveDivResult => {
-  if (b.length === 1 && b[0] === 1) {
-    return {
-      quotient: a.slice(),
-      remainder: [0],
-    };
-  }
-
-  // Since we already have a > b, ensuring base > b
-  // enables us to use `divideSmall`
+  // Since a > b, ensuring base > b(b has only 1 digit) would enables us to use `divideSmall`
   if (b.length === 1) {
+    if (b[0] === 1) {
+      return {
+        quotient: a.slice(),
+        remainder: [0],
+      };
+    }
     return divideSmall(a, b[0], base);
   }
 
   // move this length to use vertical expression
-  const len = b.length;
 
   const aa = a.slice();
   const quo: number[] = [];
   let carry = [0];
-  let chop = ChopCase.BLen as ChopCase;
   do {
-    let dividend: number[];
-    switch (chop) {
-      case ChopCase.BLen:
-        {
-          const chopLen = isZero(carry) ? len : len - carry.length;
-          if (chopLen > aa.length) {
-            // not enough for further dividing
-            return {
-              quotient: unshift0(quo, aa.length),
-              remainder: purgeZeros(aa.concat(carry)),
-            };
-          }
-          if (isZero(carry)) {
-            dividend = aa.splice(aa.length - chopLen, chopLen);
-          } else {
-            dividend = aa.splice(aa.length - chopLen, chopLen).concat(carry);
-          }
-          unshift0(quo, chopLen - 1); // unshift 0s to quotient
-        }
-        break;
-      case ChopCase.OneMore:
-        dividend = aa.splice(aa.length - 1, 1).concat(carry);
-        break;
-    }
-
-    // console.log(
-    //   'dividend',
-    //   dividend.toReversed().join(''),
-    //   ['>', '<', '='][cmp(dividend, b)],
-    //   'b',
-    //   b.toReversed().join(''),
-    //   'aa',
-    //   aa.toReversed().join(''),
-    //   'carry',
-    //   carry.toReversed().join('')
-    // );
+    // one digit at a time
+    const dividend = isZero(carry)
+      ? aa.splice(aa.length - 1, 1)
+      : aa.splice(aa.length - 1, 1).concat(carry);
 
     // start from high rank
     switch (cmp(dividend, b)) {
       case Ordering.Equal:
+        // set carry to zero
         carry.length = 1;
         carry[0] = 0;
         quo.unshift(1);
-        chop = ChopCase.BLen;
         break;
       case Ordering.Greater:
         // calculate [...]/[...] or [...,1]/[...]
@@ -223,40 +182,32 @@ const divide = (a: readonly number[], b: readonly number[], base: number): Primi
           quo.unshift(qr.quotient);
           carry = qr.remainder;
         }
-        chop = ChopCase.BLen;
         break;
       case Ordering.Less:
+        unshift0(quo, 1);
         // & already nothing left but still need to chop
         if (aa.length === 0) {
           // if we have no more digits to chop, we are done
-          if (chop === ChopCase.BLen) {
-            return {
-              quotient: unshift0(quo, aa.length),
-              remainder: purgeZeros(dividend.concat(carry)),
-            };
-          }
-          // if we have chopped all digits, we are done
-          return { quotient: unshift0(quo, aa.length - 1), remainder: purgeZeros(dividend) };
+          return {
+            quotient: quo.length === 0 ? [0] : quo,
+            remainder: dividend,
+          };
         }
-
         // chop another digit and try again
         carry = dividend;
-        chop = ChopCase.OneMore;
         break;
     }
   } while (aa.length > 0);
 
-  purgeZeros(quo);
-  purgeZeros(carry);
-
-  // console.log({ quo, carry });
+  // purgeZeros(quo);
+  // purgeZeros(carry);
   return { quotient: quo, remainder: carry };
 };
 
 /**
  * Calculate a / b
  *
- * ! ONLY use when a > b and base > b. (this means b is a one digit number in base `base`)
+ * ! ONLY use when a > b and base > b(b has only 1 digit).
  */
 const divideSmall = (a: readonly number[], b: number, base: number): PrimitiveDivResult => {
   let carry = 0;
@@ -342,8 +293,7 @@ const pow = (a: readonly number[], exponent: number[], base: number): number[] =
     }
   }
 
-  console.log('exponent', exponent.toReversed().join(''));
-  const qr = base === 2 ? divide(exponent, [0, 1], base) : divideSmall(exponent, 2, base);
+  const qr = base === 2 ? divide(exponent, [0, 1], 2) : divideSmall(exponent, 2, base);
   const v = pow(a, qr.quotient, base);
   if (isZero(qr.remainder)) {
     return multiply(v, v, base);
@@ -788,12 +738,8 @@ export class NBaseInteger {
       return { quotient: b, remainder: new NBaseInteger(flag, 0, a.#base, a.#charset) };
     }
 
-    console.log(`${a.toString()} / ${b.toString()}`);
-
     const result = { quotient: b, remainder: new NBaseInteger(flag, 0, a.#base, a.#charset) };
-
-    // & Deal |a| > |b| here
-    const qr = divideBurnikelZiegler(a.#digits, b.#digits, a.#base);
+    const qr = divide(a.#digits, b.#digits, a.#base);
     b.#digits = qr.quotient;
     b.#negative = a.#negative !== b.#negative;
     result.remainder.#digits = qr.remainder;
@@ -816,12 +762,32 @@ export class NBaseInteger {
     return result.quotient;
   }
 
+  divAssign(nbi: NBaseInteger): NBaseInteger;
+  divAssign(n: number): NBaseInteger;
+  divAssign(arg: number | NBaseInteger): NBaseInteger {
+    const other = NBaseInteger.#clone(this.#safeOther(arg));
+    const result = NBaseInteger.#divAToB(this, other);
+    this.#digits = result.quotient.#digits;
+    this.#negative = result.quotient.#negative;
+    return this;
+  }
+
   mod(nbi: NBaseInteger): NBaseInteger;
   mod(n: number): NBaseInteger;
   mod(arg: number | NBaseInteger): NBaseInteger {
     const other = NBaseInteger.#clone(this.#safeOther(arg));
     const result = NBaseInteger.#divAToB(this, other);
     return result.remainder;
+  }
+
+  modAssign(nbi: NBaseInteger): NBaseInteger;
+  modAssign(n: number): NBaseInteger;
+  modAssign(arg: number | NBaseInteger): NBaseInteger {
+    const other = NBaseInteger.#clone(this.#safeOther(arg));
+    const result = NBaseInteger.#divAToB(this, other);
+    this.#digits = result.remainder.#digits;
+    this.#negative = result.remainder.#negative;
+    return this;
   }
 
   // #endregion

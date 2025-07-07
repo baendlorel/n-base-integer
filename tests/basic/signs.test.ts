@@ -47,15 +47,16 @@ describe('NBaseInteger signs', () => {
     expect(b.toString()).toBe('0');
   });
 
-  it('sign getter', () => {
-    expect(n(123).sign).toBe(1);
-    expect(n(-123).sign).toBe(-1);
-    const a = n(0);
-    expect(a.sign).toBe(1);
+  it('sgn getter', () => {
+    expect(n(123).sgn).toBe(1);
+    expect(n(-123).sgn).toBe(-1);
+    const zero = n(0);
+    expect(zero.sgn).toBe(0);
+    const a = n(1);
     a.negAssign();
-    expect(a.sign).toBe(-1);
+    expect(a.sgn).toBe(-1);
     a.posAssign();
-    expect(a.sign).toBe(1);
+    expect(a.sgn).toBe(1);
   });
 
   it('isOdd', () => {
