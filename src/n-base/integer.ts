@@ -371,41 +371,36 @@ const purgeZeros = (a: number[]): number[] => {
 };
 // #endregion
 
-// todo 所有入参要能够支持字符串输入，也就是toString后的结果
-
 /**
  * NBase is a class for n-base numeral system
  */
 export class NBaseInteger {
   // # Creation
+  // todo 测试这个新工厂是否能正常工作
   static [Flag.CREATOR](priv: symbol, ...args: (string | number)[]): NBaseInteger {
     protect(priv);
     expect(args.length <= 3, `To many arguments for ${CLASS_NAME}(...args).`);
-    const [arg0, arg1, arg2] = args;
+    const [n, base, charset] = args;
     // basic asserts
     switch (args.length) {
       case 0:
         throw new Error(`${CLASS_NAME}(...args) does not have enough arguments.`);
       case 3:
-        expect(typeof arg2 === 'string', `'charset' must be a string with length >= 2.`);
+        expect(typeof charset === 'string', `'charset' must be a string with length >= 2.`);
       case 2:
         expect(
-          Number.isSafeInteger(arg1) && 2 <= (arg1 as number) && (arg1 as number) <= MAX_BASE,
+          Number.isSafeInteger(base) && 2 <= (base as number) && (base as number) <= MAX_BASE,
           `'base' must be an integer from 2 to ${MAX_BASE}.`
         );
       case 1:
         expect(
-          Number.isSafeInteger(arg0) || (typeof arg0 === 'string' && arg0.length > 0),
+          Number.isSafeInteger(n) || (typeof n === 'string' && n.length > 0),
           `'n' must be an integer or a string.`
         );
         break;
       default:
         throw new Error(`To many arguments for ${CLASS_NAME}(...args).`);
     }
-
-    const n = arg0 as number | string;
-    const base = arg1 as number;
-    const customCharset = arg2 as string;
 
     /**
      * After assertion, now we have
@@ -420,11 +415,11 @@ export class NBaseInteger {
 
     switch (args.length) {
       case 3:
-        expect(customCharset.length >= base, `Charset length must > base.`);
-        _charset = charsets.get(safeCharset(customCharset));
-        _base = base;
+        expect((charset as string).length >= (base as number), `Charset length must > base.`);
+        _charset = charsets.get(safeCharset(charset as string));
+        _base = base as number;
       case 2:
-        _base = base;
+        _base = base as number;
       case 1:
         if (typeof n === 'number') {
           return new NBaseInteger(Flag.PRIVATE, n, _base, _charset);
