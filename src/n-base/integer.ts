@@ -29,6 +29,7 @@ const cmp = (a: readonly number[], b: readonly number[]): Ordering => {
   return Ordering.Equal;
 };
 
+// #region arithmetic functions
 const plus = (a: readonly number[], b: readonly number[], base: number): number[] => {
   // assure that a is longer
   if (a.length < b.length) {
@@ -158,7 +159,7 @@ const divide = (a: readonly number[], b: readonly number[], base: number): Primi
 
   // Since we already have a > b, ensuring base > b
   // enables us to use `divideSmall`
-  if (cmp([0, 1], b) === Ordering.Greater) {
+  if (b.length === 1) {
     return divideSmall(a, b[0], base);
   }
 
@@ -179,7 +180,7 @@ const divide = (a: readonly number[], b: readonly number[], base: number): Primi
             // not enough for further dividing
             return {
               quotient: unshift0(quo, aa.length),
-              remainder: aa.concat(carry),
+              remainder: purgeZeros(aa.concat(carry)),
             };
           }
           if (isZero(carry)) {
@@ -195,17 +196,17 @@ const divide = (a: readonly number[], b: readonly number[], base: number): Primi
         break;
     }
 
-    console.log(
-      'dividend',
-      dividend.toReversed().join(''),
-      ['>', '<', '='][cmp(dividend, b)],
-      'b',
-      b.toReversed().join(''),
-      'aa',
-      aa.toReversed().join(''),
-      'carry',
-      carry.toReversed().join('')
-    );
+    // console.log(
+    //   'dividend',
+    //   dividend.toReversed().join(''),
+    //   ['>', '<', '='][cmp(dividend, b)],
+    //   'b',
+    //   b.toReversed().join(''),
+    //   'aa',
+    //   aa.toReversed().join(''),
+    //   'carry',
+    //   carry.toReversed().join('')
+    // );
 
     // start from high rank
     switch (cmp(dividend, b)) {
@@ -218,13 +219,26 @@ const divide = (a: readonly number[], b: readonly number[], base: number): Primi
       case Ordering.Greater:
         // calculate [...]/[...] or [...,1]/[...]
         {
-          const qr = searchQuotient(dividend, b, base);
+          const qr = binarySearchQuotient(dividend, b, base);
           quo.unshift(qr.quotient);
           carry = qr.remainder;
         }
         chop = ChopCase.BLen;
         break;
       case Ordering.Less:
+        // & already nothing left but still need to chop
+        if (aa.length === 0) {
+          // if we have no more digits to chop, we are done
+          if (chop === ChopCase.BLen) {
+            return {
+              quotient: unshift0(quo, aa.length),
+              remainder: purgeZeros(dividend.concat(carry)),
+            };
+          }
+          // if we have chopped all digits, we are done
+          return { quotient: unshift0(quo, aa.length - 1), remainder: purgeZeros(dividend) };
+        }
+
         // chop another digit and try again
         carry = dividend;
         chop = ChopCase.OneMore;
@@ -235,7 +249,7 @@ const divide = (a: readonly number[], b: readonly number[], base: number): Primi
   purgeZeros(quo);
   purgeZeros(carry);
 
-  console.log({ quo, carry });
+  // console.log({ quo, carry });
   return { quotient: quo, remainder: carry };
 };
 
@@ -257,14 +271,14 @@ const divideSmall = (a: readonly number[], b: number, base: number): PrimitiveDi
 };
 
 /**
- * Searchi the quotient of a / b
+ * Use binary search to get the quotient of a / b
  *
  * ! ONLY use when a / b is between 1 to base - 1.
  *
  * This causes quotient is a one digit number under base `base`.
  * So it returns quotient as a `number`, not `number[]`
  */
-const searchQuotient = (
+const binarySearchQuotient = (
   a: readonly number[],
   b: readonly number[],
   base: number
@@ -308,6 +322,143 @@ const searchQuotient = (
   }
 };
 
+const divideBurnikelZiegler = (
+  a: readonly number[],
+  b: readonly number[],
+  base: number
+): PrimitiveDivResult => {
+  if (isZero(a)) {
+    return { quotient: [0], remainder: [0] };
+  }
+
+  switch (cmp(a, b)) {
+    case Ordering.Less:
+      return { quotient: [0], remainder: a.slice() };
+    case Ordering.Equal:
+      return { quotient: [1], remainder: [0] };
+    default:
+      break;
+  }
+
+  if (b.length === 1) {
+    return divideSmall(a, b[0], base);
+  }
+
+  // 分块长度，推荐为2的幂，实际实现可调优
+  const n = b.length;
+  const m = Math.floor(n / 2);
+
+  // 若被除数太短，降级为传统除法
+  if (a.length < n * 2) {
+    // 传统竖式除法
+    return divide(a, b, base);
+  }
+
+  // 分块
+  // a = a_hi * base^(m*2) + a_mid * base^m + a_lo
+  const a_hi = a.slice(m * 2);
+  const a_mid = a.slice(m, m * 2);
+  const a_lo = a.slice(0, m);
+  const b_hi = b.slice(m);
+  const b_lo = b.slice(0, m);
+
+  // 递归求 q1 = floor(a_hi / b_hi)
+  const q1res = divideBurnikelZiegler(a_hi, b_hi, base);
+  const q1 = q1res.quotient;
+
+  // r1 = a_hi - q1 * b_hi
+  let r1 = minus(a_hi, multiply(b_hi, q1, base), base);
+
+  // t = r1 * base^(m*2) + a_mid * base^m + a_lo - q1 * b_lo * base^m
+  let t = plus(
+    plus(
+      r1.concat(new Array(m * 2).fill(0)), // r1 * base^(m*2)
+      a_mid.concat(new Array(m).fill(0)), // a_mid * base^m
+      base
+    ),
+    a_lo,
+    base
+  );
+  t = minus(t, multiply(b_lo.concat(new Array(m).fill(0)), q1, base), base);
+
+  // 递归求 q2 = floor(t / b_hi)
+  const q2res = divideBurnikelZiegler(t, b_hi, base);
+  const q2 = q2res.quotient;
+
+  // r2 = t - q2 * b_hi
+  let r2 = minus(t, multiply(b_hi, q2, base), base);
+
+  // 合并商
+  let q = plus(q1.concat(new Array(m).fill(0)), q2, base);
+
+  // 修正进位（商可能大1，需要修正）
+  // 检查 r2 >= b，如果是则 q++, r2 -= b
+  while (cmp(r2, b) !== Ordering.Less) {
+    q = plus(q, [1], base);
+    r2 = minus(r2, b, base);
+  }
+
+  return {
+    quotient: purgeZeros(q),
+    remainder: purgeZeros(r2),
+  };
+};
+
+// #endregion
+
+const pow = (a: readonly number[], exponent: number[], base: number): number[] => {
+  const product: number[] = [];
+  // handle some easy cases
+  if (exponent.length === 1) {
+    switch (exponent[0]) {
+      case 0:
+        return product;
+      case 1:
+        return a.slice();
+      case 2:
+        return multiply(a, a, base);
+      case 3:
+        return multiply(a, multiply(a, a, base), base);
+      default:
+        break;
+    }
+  }
+
+  console.log('exponent', exponent.toReversed().join(''));
+  const qr = base === 2 ? divide(exponent, [0, 1], base) : divideSmall(exponent, 2, base);
+  const v = pow(a, qr.quotient, base);
+  if (isZero(qr.remainder)) {
+    return multiply(v, v, base);
+  } else {
+    return multiply(v, multiply(v, a, base), base);
+  }
+};
+
+const powWith10Base = (a: readonly number[], exponent: number, base: number): number[] => {
+  // handle some easy cases
+  switch (exponent) {
+    case 0:
+      return [1];
+    case 1:
+      return a.slice();
+    case 2:
+      return multiply(a, a, base);
+    case 3:
+      return multiply(a, multiply(a, a, base), base);
+    default:
+      break;
+  }
+
+  const remainder = exponent % 2;
+  exponent = (exponent - remainder) / 2;
+  const v = powWith10Base(a, exponent, base);
+  if (remainder === 0) {
+    return multiply(v, v, base);
+  } else {
+    return multiply(v, multiply(v, a, base), base);
+  }
+};
+
 /**
  * Purge the leading zeros of an array of digits.
  * @param a
@@ -320,11 +471,12 @@ const purgeZeros = (a: number[]): number[] => {
       return a;
     }
   }
-  // if every digit is zero, return a single zero
   a.length = 1;
   return a;
 };
 // #endregion
+
+// todo 所有入参要能够支持字符串输入，也就是toString后的结果
 
 /**
  * NBase is a class for n-base numeral system
@@ -396,7 +548,7 @@ export class NBaseInteger {
    * @param a The instance to clone.
    */
   static #clone(a: NBaseInteger): NBaseInteger {
-    const clone = new NBaseInteger(flag, a.sign, a.#base, a.#charset);
+    const clone = new NBaseInteger(flag, a.sgn, a.#base, a.#charset);
     clone.#digits = a.#digits.slice();
     return clone;
   }
@@ -481,8 +633,18 @@ export class NBaseInteger {
     return x === 0;
   }
 
-  get sign(): -1 | 1 {
-    return this.#negative ? -1 : 1;
+  /**
+   * Same as sgn(x)
+   * - -1 for negative, 0 for zero, 1 for positive
+   */
+  get sgn(): -1 | 0 | 1 {
+    if (this.#negative) {
+      return -1;
+    }
+    if (this.isZero) {
+      return 0; // zero is considered positive
+    }
+    return 1;
   }
   // #endregion
 
@@ -537,9 +699,7 @@ export class NBaseInteger {
     switch (cmp(ad, bd)) {
       case Ordering.Equal:
         // & means a = -b, then a + b = 0
-        b.#negative = false; // zero is considered positive
-        b.#digits.length = 1;
-        b.#digits[0] = 0;
+        b.zero();
         break;
       case Ordering.Greater:
         // & means |a| > |b|, then a + b = sgn(a)(|a| - |b|)
@@ -596,9 +756,7 @@ export class NBaseInteger {
     const d = this.#digits;
     if (d.length === 1 && d[0] === -1) {
       // if the number is -1, then it will become 0
-      d[0] = 0;
-      this.#negative = false; // set sign to positive
-      return this;
+      return this.zero();
     }
 
     if (this.#negative) {
@@ -707,6 +865,10 @@ export class NBaseInteger {
     if (b.isZero) {
       throw new RangeError('Division by zero');
     }
+    if (a.isZero) {
+      b.zero();
+      return { quotient: b, remainder: new NBaseInteger(flag, 0, a.#base, a.#charset) };
+    }
 
     console.log(`${a.toString()} / ${b.toString()}`);
 
@@ -726,9 +888,7 @@ export class NBaseInteger {
         return result;
       case Ordering.Less:
         // & |a| < |b|, then a / b = 0, r = a
-        b.#negative = resultNegative;
-        b.#digits.length = 1;
-        bd[0] = 0;
+        b.zero();
         result.remainder.#digits = a.#digits.slice();
         return result;
       default:
@@ -736,7 +896,6 @@ export class NBaseInteger {
     }
 
     // & Deal |a| > |b| here
-    // approximate the quotient first
     const qr = divide(a.#digits, b.#digits, a.#base);
     b.#digits = qr.quotient;
     result.remainder.#digits = qr.remainder;
@@ -769,36 +928,7 @@ export class NBaseInteger {
 
   // #endregion
 
-  // todo 把power也提升为仅仅关联于数组的基础函数
   // #region power
-  static #circularPow(a: NBaseInteger, exponent: NBaseInteger): NBaseInteger {
-    const res = new NBaseInteger(flag, 1, a.#base, a.#charset);
-    // handle some easy cases
-    if (exponent.#digits.length === 1) {
-      switch (exponent.#digits[0]) {
-        case 0:
-          return res;
-        case 1:
-          return res.mulAssgin(a);
-        case 2:
-          return res.mulAssgin(a).mulAssgin(a);
-        case 3:
-          return res.mulAssgin(a).mulAssgin(a).mulAssgin(a);
-        default:
-          break;
-      }
-    }
-
-    const divResult = exponent.divmod2();
-    exponent = divResult.quotient;
-    if (!divResult.remainder.isZero) {
-      res.mulAssgin(a);
-    }
-
-    const v = NBaseInteger.#circularPow(a, exponent);
-    return res.mulAssgin(v).mulAssgin(v);
-  }
-
   /**
    * Calculate a^b.
    * - 0^0 is considered as 1. Because in JS, 0**0 = 1
@@ -806,79 +936,53 @@ export class NBaseInteger {
    * @param b The exponent.
    */
   static #pow(a: NBaseInteger, b: NBaseInteger): NBaseInteger {
-    if (b.#negative) {
-      throw new RangeError('Exponent must be non-negative.');
-    }
-    if (b.isZero) {
-      return new NBaseInteger(flag, 1, a.#base, a.#charset); // a^0 = 1
-    }
-    if (a.isZero) {
-      return new NBaseInteger(flag, 0, a.#base, a.#charset); // a^0 = 1
-    }
-
-    // calculate
-    const res = NBaseInteger.#circularPow(a, b);
-    res.#negative = a.#negative && b.isOdd;
-    return res;
-  }
-
-  static #circularPowWithNumber(a: NBaseInteger, exponent: number): NBaseInteger {
-    const res = new NBaseInteger(flag, 1, a.#base, a.#charset);
-    // handle some easy cases
-    switch (exponent) {
-      case 0:
-        return res;
-      case 1:
-        return res.mulAssgin(a);
-      case 2:
-        return res.mulAssgin(a).mulAssgin(a);
-      case 3:
-        return res.mulAssgin(a).mulAssgin(a).mulAssgin(a);
-      default:
-        break;
-    }
-
-    const remainder = exponent % 2;
-    exponent = (exponent - remainder) / 2;
-    if (remainder === 1) {
-      res.mulAssgin(a);
-    }
-
-    const v = NBaseInteger.#circularPowWithNumber(a, exponent);
-    return res.mulAssgin(v).mulAssgin(v);
+    const result = new NBaseInteger(flag, 0, a.#base, a.#charset);
+    result.#digits = pow(a.#digits, b.#digits, a.#base);
+    result.#negative = a.#negative && b.isOdd;
+    return result;
   }
 
   /**
    * Calculate a^b.
    * - 0^0 is considered as 1. Because in JS, 0**0 = 1
    * @param a The base.
-   * @param b The exponent.
+   * @param b The exponent in 10-base.
    */
-  static #powWithNumber(a: NBaseInteger, b: number): NBaseInteger {
-    if (b < 0) {
-      throw new RangeError('Exponent must be non-negative.');
-    }
-    b = safeInt(b);
-    if (b === 0) {
-      return new NBaseInteger(flag, 1, a.#base, a.#charset); // a^0 = 1
-    }
-    if (a.isZero) {
-      return new NBaseInteger(flag, 0, a.#base, a.#charset); // a^0 = 1
-    }
-
-    // calculate
-    const res = NBaseInteger.#circularPowWithNumber(a, b);
-    res.#negative = a.#negative && b % 2 === 1;
-    return res;
+  static #powWith10Base(a: NBaseInteger, b: number): NBaseInteger {
+    const result = new NBaseInteger(flag, 0, a.#base, a.#charset);
+    result.#digits = powWith10Base(a.#digits, b, a.#base);
+    result.#negative = a.#negative && b % 2 === 1;
+    return result;
   }
 
   pow(nbi: NBaseInteger): NBaseInteger;
-  pow(n: number): NBaseInteger;
+  pow(exponent: number): NBaseInteger;
   pow(arg: number | NBaseInteger): NBaseInteger {
     if (typeof arg === 'number') {
-      return NBaseInteger.#powWithNumber(this, arg);
+      const b = safeInt(arg);
+      if (b < 0) {
+        throw new RangeError('Exponent must be non-negative.');
+      }
+      if (b === 0) {
+        return new NBaseInteger(flag, 1, this.#base, this.#charset); // a^0 = 1
+      }
+      if (this.isZero) {
+        return new NBaseInteger(flag, 0, this.#base, this.#charset); // a^0 = 1
+      }
+      return NBaseInteger.#powWith10Base(this, arg);
     }
+
     if (arg instanceof NBaseInteger) {
+      const b = this.#safeOther(arg);
+      if (b.#negative) {
+        throw new RangeError('Exponent must be non-negative.');
+      }
+      if (b.isZero) {
+        return new NBaseInteger(flag, 1, this.#base, this.#charset); // a^0 = 1
+      }
+      if (this.isZero) {
+        return new NBaseInteger(flag, 0, this.#base, this.#charset); // a^0 = 1
+      }
       return NBaseInteger.#pow(this, arg);
     }
 
@@ -1055,6 +1159,17 @@ export class NBaseInteger {
   // #endregion
 
   // #region others
+  /**
+   * Set this n-base number to 0
+   * @returns this
+   */
+  zero() {
+    this.#negative = false;
+    this.#digits.length = 1;
+    this.#digits[0] = 0;
+    return this;
+  }
+
   clone() {
     return NBaseInteger.#clone(this);
   }
