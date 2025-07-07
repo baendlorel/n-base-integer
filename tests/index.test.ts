@@ -1,6 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { NBaseInteger } from '../src/n-base/integer';
-
+import { NBaseInteger } from '@/index';
 // Test for NBaseInteger.from and toString
 
 describe('NBaseInteger', () => {

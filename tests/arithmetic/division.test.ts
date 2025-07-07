@@ -1,5 +1,5 @@
-import { describe, it, expect, fit, fdescribe } from '@jest/globals';
-import { NBaseInteger } from '../../src/n-base/integer';
+import { describe, it, expect } from '@jest/globals';
+import { NBaseInteger } from '@/index';
 
 describe('NBaseInteger.div', () => {
   it('should divide 2', () => {

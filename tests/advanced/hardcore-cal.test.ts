@@ -1,5 +1,5 @@
-import { describe, it, expect, fit } from '@jest/globals';
-import { NBaseInteger } from '../../src/n-base/integer';
+import { describe, it, expect } from '@jest/globals';
+import { NBaseInteger } from '@/index';
 
 describe('NBaseInteger hardcore add/mul', () => {
   const base10 = 10;

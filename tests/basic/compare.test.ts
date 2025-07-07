@@ -1,5 +1,5 @@
-import { describe, expect, test } from '@jest/globals';
-import { NBaseInteger } from '../../src/n-base/integer';
+import { describe, it, expect } from '@jest/globals';
+import { NBaseInteger } from '@/index';
 
 describe('NBaseInteger comparison functions', () => {
   const a = NBaseInteger.from(123, 10);
@@ -9,7 +9,7 @@ describe('NBaseInteger comparison functions', () => {
   const negB = NBaseInteger.from(-456, 10);
 
   // eq, ne
-  test('eq and ne', () => {
+  it('eq and ne', () => {
     expect(a.eq(c)).toBe(true);
     expect(a.eq(b)).toBe(false);
     expect(a.ne(b)).toBe(true);
@@ -17,7 +17,7 @@ describe('NBaseInteger comparison functions', () => {
   });
 
   // gt, gte, lt, lte
-  test('gt, gte, lt, lte', () => {
+  it('gt, gte, lt, lte', () => {
     expect(b.gt(a)).toBe(true);
     expect(b.gte(a)).toBe(true);
     expect(a.lt(b)).toBe(true);
@@ -31,14 +31,14 @@ describe('NBaseInteger comparison functions', () => {
   });
 
   // eqAbs, neAbs
-  test('eqAbs and neAbs', () => {
+  it('eqAbs and neAbs', () => {
     expect(a.eqAbs(negA)).toBe(true);
     expect(a.neAbs(negB)).toBe(true);
     expect(a.eqAbs(b)).toBe(false);
   });
 
   // gtAbs, gteAbs, ltAbs, lteAbs
-  test('gtAbs, gteAbs, ltAbs, lteAbs', () => {
+  it('gtAbs, gteAbs, ltAbs, lteAbs', () => {
     expect(b.gtAbs(a)).toBe(true);
     expect(b.gteAbs(a)).toBe(true);
     expect(a.ltAbs(b)).toBe(true);
