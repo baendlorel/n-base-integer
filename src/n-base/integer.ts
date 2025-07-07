@@ -322,88 +322,6 @@ const binarySearchQuotient = (
   }
 };
 
-const divideBurnikelZiegler = (
-  a: readonly number[],
-  b: readonly number[],
-  base: number
-): PrimitiveDivResult => {
-  if (isZero(a)) {
-    return { quotient: [0], remainder: [0] };
-  }
-
-  switch (cmp(a, b)) {
-    case Ordering.Less:
-      return { quotient: [0], remainder: a.slice() };
-    case Ordering.Equal:
-      return { quotient: [1], remainder: [0] };
-    default:
-      break;
-  }
-
-  if (b.length === 1) {
-    return divideSmall(a, b[0], base);
-  }
-
-  // 分块长度，推荐为2的幂，实际实现可调优
-  const n = b.length;
-  const m = Math.floor(n / 2);
-
-  // 若被除数太短，降级为传统除法
-  if (a.length < n * 2) {
-    // 传统竖式除法
-    return divide(a, b, base);
-  }
-
-  // 分块
-  // a = a_hi * base^(m*2) + a_mid * base^m + a_lo
-  const a_hi = a.slice(m * 2);
-  const a_mid = a.slice(m, m * 2);
-  const a_lo = a.slice(0, m);
-  const b_hi = b.slice(m);
-  const b_lo = b.slice(0, m);
-
-  // 递归求 q1 = floor(a_hi / b_hi)
-  const q1res = divideBurnikelZiegler(a_hi, b_hi, base);
-  const q1 = q1res.quotient;
-
-  // r1 = a_hi - q1 * b_hi
-  let r1 = minus(a_hi, multiply(b_hi, q1, base), base);
-
-  // t = r1 * base^(m*2) + a_mid * base^m + a_lo - q1 * b_lo * base^m
-  let t = plus(
-    plus(
-      r1.concat(new Array(m * 2).fill(0)), // r1 * base^(m*2)
-      a_mid.concat(new Array(m).fill(0)), // a_mid * base^m
-      base
-    ),
-    a_lo,
-    base
-  );
-  t = minus(t, multiply(b_lo.concat(new Array(m).fill(0)), q1, base), base);
-
-  // 递归求 q2 = floor(t / b_hi)
-  const q2res = divideBurnikelZiegler(t, b_hi, base);
-  const q2 = q2res.quotient;
-
-  // r2 = t - q2 * b_hi
-  let r2 = minus(t, multiply(b_hi, q2, base), base);
-
-  // 合并商
-  let q = plus(q1.concat(new Array(m).fill(0)), q2, base);
-
-  // 修正进位（商可能大1，需要修正）
-  // 检查 r2 >= b，如果是则 q++, r2 -= b
-  while (cmp(r2, b) !== Ordering.Less) {
-    q = plus(q, [1], base);
-    r2 = minus(r2, b, base);
-  }
-
-  return {
-    quotient: purgeZeros(q),
-    remainder: purgeZeros(r2),
-  };
-};
-
 // #endregion
 
 const pow = (a: readonly number[], exponent: number[], base: number): number[] => {
@@ -874,30 +792,10 @@ export class NBaseInteger {
 
     const result = { quotient: b, remainder: new NBaseInteger(flag, 0, a.#base, a.#charset) };
 
-    // div abs
-    const ad = a.#digits.slice();
-    const bd = b.#digits;
-    const resultNegative = a.#negative !== b.#negative;
-
-    // simple situations
-    switch (cmp(ad, bd)) {
-      case Ordering.Equal:
-        b.#negative = resultNegative;
-        bd.length = 1;
-        bd[0] = 1;
-        return result;
-      case Ordering.Less:
-        // & |a| < |b|, then a / b = 0, r = a
-        b.zero();
-        result.remainder.#digits = a.#digits.slice();
-        return result;
-      default:
-        break;
-    }
-
     // & Deal |a| > |b| here
-    const qr = divide(a.#digits, b.#digits, a.#base);
+    const qr = divideBurnikelZiegler(a.#digits, b.#digits, a.#base);
     b.#digits = qr.quotient;
+    b.#negative = a.#negative !== b.#negative;
     result.remainder.#digits = qr.remainder;
     return result;
   }
