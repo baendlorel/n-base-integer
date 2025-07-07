@@ -3,6 +3,12 @@ import { NBaseInteger } from '@/index';
 // Test for NBaseInteger.from and toString
 
 describe('NBaseInteger', () => {
+  it('should be callable', () => {
+    const a = NBaseInteger(123, 10);
+    expect(a.toString()).toBe('123');
+    expect(() => Reflect.construct(NBaseInteger, [])).toThrow();
+  });
+
   it('should convert decimal to base62 string and back', () => {
     const n = 123456789;
     const nbi = NBaseInteger.from(n, 62);

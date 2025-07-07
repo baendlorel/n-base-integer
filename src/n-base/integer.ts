@@ -358,15 +358,13 @@ export class NBaseInteger {
    * @param n 10-number
    * @param base
    */
-  static from(n: number, base: number): NBaseInteger;
   /**
    * Create an NBaseInteger with custom charsets
    * - `charset.length` will be the `base`
    * @param n 10-number
    * @param charset
    */
-  static from(n: number, charset: string): NBaseInteger;
-  static from(n: number, arg: number | string): NBaseInteger {
+  static from(n: number, arg: number | string = 10): NBaseInteger {
     safeInt(n);
 
     // create with default charset

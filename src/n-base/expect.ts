@@ -5,7 +5,10 @@ import { Flag } from './consts';
  * @param privateFlag The flag to check.
  * @param msg The error message to throw if the flag does not match.
  */
-export const protect = (privateFlag: symbol, msg = `This method is prohibited from calling.`) => {
+export const protect = (
+  privateFlag: symbol,
+  msg = `This method is prohibited from calling outside.`
+) => {
   if (privateFlag !== Flag.PRIVATE) {
     throw new Error(msg);
   }
