@@ -14,13 +14,19 @@ export const protect = (
   }
 };
 
-export const safeCharset = (charset: string) => {
-  if (charset.length < 2) {
-    throw new RangeError(`Charset must contain at least 2 characters.`);
+export const expect: (o: unknown, msg: string) => asserts o = (o: unknown, msg: string) => {
+  if (!o) {
+    throw new Error(msg);
   }
+};
+
+export const safeCharset = (charset: string) => {
   const deduped = new Set(charset.split(''));
   if (charset.length !== deduped.size) {
-    throw new RangeError(`Given charset contains duplicate characters.`);
+    throw new RangeError(`'charset' must not contain duplicate chars.`);
+  }
+  if (deduped.size < 2) {
+    throw new RangeError(`'charset' must contain at least 2 chars.`);
   }
   return charset;
 };

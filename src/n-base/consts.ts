@@ -1,9 +1,9 @@
 /**
  * The name of the N-base integer class.
  */
-export const NAME = 'NBaseInteger';
+export const CLASS_NAME = 'NBaseInteger';
 
-export const MAX_BASE = 1000; // Maximum base supported by the default charset
+export const MAX_BASE = 10000; // Maximum base supported by the default charset
 
 /**
  * Enum representing the result of a comparison operation.
@@ -18,4 +18,5 @@ export const enum Ordering {
 export const Flag = {
   CLONE: Symbol('clone'),
   PRIVATE: Symbol('private'),
+  CREATOR: Symbol('creator'),
 };

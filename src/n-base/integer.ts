@@ -1,6 +1,6 @@
-import { Ordering, MAX_BASE, NAME, Flag } from './consts';
+import { Ordering, MAX_BASE, CLASS_NAME, Flag } from './consts';
 import { charsets, unshift0 } from './common';
-import { protect, safeCharset, safeInt } from './expect';
+import { expect, protect, safeCharset, safeInt } from './expect';
 
 interface NBaseIntegerDivResult {
   quotient: NBaseInteger;
@@ -13,6 +13,32 @@ interface PrimitiveDivResult {
 }
 
 // #region primitive functions
+/**
+ * Checking if `n` only have chars in `charset`
+ *
+ * ! ONLY use when `base` and `charset` is valid
+ * - `base` <= `charset.length`
+ * - `charset` has no duplicate chars
+ */
+const parse = (n: string, base: number, charset: readonly string[]): number[] => {
+  const map: Record<string, number> = {};
+  for (let i = 0; i < base; i++) {
+    map[charset[i]] = i;
+  }
+  const digits: number[] = [];
+  for (let i = 0; i < n.length; i++) {
+    const digit = map[n[i]];
+    if (!digit) {
+      throw new Error(
+        `Parsing failed, unknown char '${n[i]}' in '${n}' with charset = ${charset.join()}.`
+      );
+    }
+    digits.push(digit);
+  }
+
+  return digits;
+};
+
 const isZero = (a: readonly number[]): boolean => a.length === 1 && a[0] === 0;
 
 const cmp = (a: readonly number[], b: readonly number[]): Ordering => {
@@ -352,18 +378,65 @@ const purgeZeros = (a: number[]): number[] => {
  */
 export class NBaseInteger {
   // # Creation
-  /**
-   * Create an NBaseInteger with default charsets
-   * - default charsets is '0-9A-Za-z'
-   * @param n 10-number
-   * @param base
-   */
-  /**
-   * Create an NBaseInteger with custom charsets
-   * - `charset.length` will be the `base`
-   * @param n 10-number
-   * @param charset
-   */
+  static [Flag.CREATOR](priv: symbol, ...args: (string | number)[]): NBaseInteger {
+    protect(priv);
+    expect(args.length <= 3, `To many arguments for ${CLASS_NAME}(...args).`);
+    const [arg0, arg1, arg2] = args;
+    // basic asserts
+    switch (args.length) {
+      case 0:
+        throw new Error(`${CLASS_NAME}(...args) does not have enough arguments.`);
+      case 3:
+        expect(typeof arg2 === 'string', `'charset' must be a string with length >= 2.`);
+      case 2:
+        expect(
+          Number.isSafeInteger(arg1) && 2 <= (arg1 as number) && (arg1 as number) <= MAX_BASE,
+          `'base' must be an integer from 2 to ${MAX_BASE}.`
+        );
+      case 1:
+        expect(
+          Number.isSafeInteger(arg0) || (typeof arg0 === 'string' && arg0.length > 0),
+          `'n' must be an integer or a string.`
+        );
+        break;
+      default:
+        throw new Error(`To many arguments for ${CLASS_NAME}(...args).`);
+    }
+
+    const n = arg0 as number | string;
+    const base = arg1 as number;
+    const customCharset = arg2 as string;
+
+    /**
+     * After assertion, now we have
+     * - arg0  is an integer or a string with length > 0
+     * - arg1? is an integer from 2 to MAX_BASE
+     * - arg2? is a string with length >= 2
+     */
+
+    // & Now we need to do further checks
+    let _charset = charsets.default;
+    let _base = 10;
+
+    switch (args.length) {
+      case 3:
+        expect(customCharset.length >= base, `Charset length must > base.`);
+        _charset = charsets.get(safeCharset(customCharset));
+        _base = base;
+      case 2:
+        _base = base;
+      case 1:
+        if (typeof n === 'number') {
+          return new NBaseInteger(Flag.PRIVATE, n, _base, _charset);
+        } else {
+          const a = new NBaseInteger(Flag.PRIVATE, 0, _base, _charset);
+          // & About `n` whether contains unknown chars will be checked in `parse`
+          a.#digits = parse(n, _base, _charset);
+          return a;
+        }
+    }
+  }
+
   static from(n: number, arg: number | string = 10): NBaseInteger {
     safeInt(n);
 
@@ -428,7 +501,7 @@ export class NBaseInteger {
     if (arg instanceof NBaseInteger) {
       const nbi = arg;
       if (nbi.#base !== this.#base) {
-        throw new TypeError(`Called with a ${NAME} with different base.`);
+        throw new TypeError(`Called with a ${CLASS_NAME} with different base.`);
       }
 
       /**
@@ -437,11 +510,11 @@ export class NBaseInteger {
        * @see ./common.ts -- charsetMap
        */
       if (nbi.#charset !== this.#charset) {
-        throw new TypeError(`Called with a ${NAME} with different charset.`);
+        throw new TypeError(`Called with a ${CLASS_NAME} with different charset.`);
       }
       return clone === Flag.CLONE ? nbi.clone() : nbi;
     }
-    throw new TypeError(`Called with an invalid argument. Expected number or ${NAME}.`);
+    throw new TypeError(`Called with an invalid argument. Expected number or ${CLASS_NAME}.`);
   }
 
   // #region properties
@@ -506,7 +579,10 @@ export class NBaseInteger {
 
   // #region constructor
   constructor(priv: symbol, n: number, base: number, charset: readonly string[]) {
-    protect(priv, `The constructor of ${NAME} is protected, please use ${NAME}.from instead.`);
+    protect(
+      priv,
+      `The constructor of ${CLASS_NAME} is protected, please use ${CLASS_NAME}.from instead.`
+    );
 
     // assign essential properties
     this.#base = base;
@@ -841,7 +917,7 @@ export class NBaseInteger {
       return NBaseInteger.#pow(this, arg);
     }
 
-    throw new TypeError(`Exponent should be a number or ${NAME}.`);
+    throw new TypeError(`Exponent should be a number or ${CLASS_NAME}.`);
   }
   // #endregion
 
