@@ -19,4 +19,5 @@ export const Flag = {
   CLONE: Symbol('clone'),
   PRIVATE: Symbol('private'),
   CREATOR: Symbol('creator'),
+  NOT_GIVEN: Symbol('not-given'),
 };

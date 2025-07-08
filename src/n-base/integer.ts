@@ -1,6 +1,6 @@
 import { Ordering, MAX_BASE, CLASS_NAME, Flag } from './consts';
 import { charsets, unshift0 } from './common';
-import { expect, protect, safeCharset, safeInt } from './expect';
+import { clearCharsetCache, expect, protect, safeCharset, safeInt } from './expect';
 
 interface NBaseIntegerDivResult {
   quotient: NBaseInteger;
@@ -460,6 +460,16 @@ export class NBaseInteger {
   }
 
   /**
+   * We use a `Map<charset, charsArray>` to cache charsets
+   * - Since `charset` is a string, we cannot use WeakMap
+   * - You can clear it to free memory
+   * @returns
+   */
+  static clearCharsetCache() {
+    return clearCharsetCache();
+  }
+
+  /**
    * Ensure argument is a valid NBaseInteger or number. Optionally clone.
    * @param arg The argument to check.
    * @param clone Whether to clone the instance.
@@ -483,28 +493,38 @@ export class NBaseInteger {
   }
 
   // #region properties
+  /**
+   * The base of this number
+   */
   readonly #base: number;
 
+  /**
+   * Every digit is < `#base`
+   */
   #digits: number[];
 
   /**
-   * Note zero is positive
+   * `this` >= 0 -> positive
+   * `this` <  0 -> negative
    */
   #negative = false;
 
+  /**
+   * The base of this number
+   */
   get base(): number {
     return this.#base;
   }
 
   /**
-   * `true` if the number is zero.
+   * `true` if this number is zero.
    */
   get isZero(): boolean {
     return isZero(this.#digits);
   }
 
   /**
-   * `true` if the number is odd.
+   * `true` if this number is odd.
    */
   get isOdd(): boolean {
     if (this.#base % 2 === 0) {
@@ -518,7 +538,7 @@ export class NBaseInteger {
   }
 
   /**
-   * `true` if the number is even.
+   * `true` if this number is even.
    */
   get isEven(): boolean {
     if (this.#base % 2 === 0) {
@@ -1281,9 +1301,27 @@ export class NBaseInteger {
     clone.#digits = this.#digits.slice();
     return clone;
   }
-
-  toString(charset?: string): string {
-    const charsetArr = charset ? safeCharset(charset, this.#base) : charsets.default;
+  /**
+   * Returns a string representation of this number in the specified base.
+   * - If `charset` is not given, it uses the default charset.
+   * - If `charset` is null, just return the digits separated with comma.
+   * - If `charset` is a string, use it to stringify every digit after check.
+   * @param charset The charset to use for conversion.
+   */
+  toString(charset: string | null | symbol = Flag.NOT_GIVEN): string {
+    let charsetArr;
+    if (charset === null) {
+      return this.#digits.toReversed().join(',');
+    } else if (typeof charset === 'string') {
+      charsetArr = safeCharset(charset, this.#base);
+    } else if (charset === Flag.NOT_GIVEN) {
+      charsetArr = charsets.default;
+      if (this.#base > charsetArr.length) {
+        return this.#digits.toReversed().join(',');
+      }
+    } else {
+      throw new TypeError(`'charset' must be a string, null or omitted.`);
+    }
     const abs: string[] = [];
     const d = this.#digits;
     for (let i = d.length - 1; i >= 0; i--) {

@@ -20,10 +20,19 @@ export const expect: (o: unknown, msg: string) => asserts o = (o: unknown, msg: 
   }
 };
 
+const charsetCache = new Map<string, string[]>();
+
 /**
  * Support emojis
  */
 export const safeCharset = (charset: string, base: number) => {
+  const cache = charsetCache.get(charset);
+  if (cache) {
+    if (cache.length > base) {
+      throw new RangeError(`charset.length(${cache.length}) must <= base(${base}).`);
+    }
+    return cache;
+  }
   const arr = Array.from(charset);
   const deduped = new Set(arr);
   if (arr.length !== deduped.size) {
@@ -41,8 +50,11 @@ export const safeCharset = (charset: string, base: number) => {
   if (arr.length > base) {
     throw new RangeError(`charset.length(${arr.length}) must <= base(${base}).`);
   }
+  charsetCache.set(charset, arr);
   return arr;
 };
+
+export const clearCharsetCache = () => charsetCache.clear();
 
 export const safeInt = (n: number) => {
   if (!Number.isSafeInteger(n)) {
