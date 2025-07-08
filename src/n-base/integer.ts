@@ -380,7 +380,6 @@ const purgeZeros = (a: number[]): number[] => {
  */
 export class NBaseInteger {
   // # Creation
-  // todo 测试这个新工厂是否能正常工作
   static [Flag.CREATOR](priv: symbol, ...args: (string | number)[]): NBaseInteger {
     protect(priv);
     expect(args.length <= 3, `To many arguments for ${CLASS_NAME}(...args).`);
@@ -442,33 +441,6 @@ export class NBaseInteger {
           return a;
         }
     }
-  }
-
-  static from(n: number, arg: number | string = 10): NBaseInteger {
-    safeInt(n);
-
-    // create with default charset
-    if (typeof arg === 'number') {
-      const base = safeInt(arg);
-      if (base <= 1) {
-        throw new RangeError(`Base must >= 1.`);
-      }
-      const dc = charsets.default;
-      if (base > dc.length) {
-        throw new RangeError(
-          `Given base > ${dc.length}. Default charset is not enough, either set it or specify another charset.`
-        );
-      }
-      return new NBaseInteger(Flag.PRIVATE, n, base, dc);
-    }
-
-    // create with custom charset
-    if (typeof arg === 'string') {
-      const charset = safeCharset(arg);
-      return new NBaseInteger(Flag.PRIVATE, n, charset.length, charsets.get(arg, charset));
-    }
-
-    throw new TypeError('Expect 2nd parameter to be a base or a charset.');
   }
 
   /**

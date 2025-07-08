@@ -4,7 +4,7 @@ import { NBaseInteger } from '@/index';
 describe('NBaseInteger signs', () => {
   const base = 10;
   function n(n: number) {
-    return NBaseInteger.from(n, base);
+    return NBaseInteger(n, base);
   }
 
   it('negate/negateAssign', () => {
@@ -48,11 +48,11 @@ describe('NBaseInteger signs', () => {
   });
 
   it('isOdd', () => {
-    const a = NBaseInteger.from(625, 5);
+    const a = NBaseInteger(625, 5);
     expect(a.toString()).toBe('10000');
     expect(a.isOdd).toBe(true);
 
-    const b = NBaseInteger.from(25, 5);
+    const b = NBaseInteger(25, 5);
     expect(b.toString()).toBe('100');
     expect(b.isOdd).toBe(true);
   });
