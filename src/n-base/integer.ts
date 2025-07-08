@@ -1274,6 +1274,32 @@ export class NBaseInteger {
     return this;
   }
 
+  // todo 完成convertTo函数
+  convertTo(base: number, charset?: string): NBaseInteger {
+    expect(
+      Number.isSafeInteger(base) && 2 <= base && base <= MAX_BASE,
+      `'base' must be an integer from 2 to ${MAX_BASE}.`
+    );
+    if (charset !== undefined) {
+      expect(typeof charset === 'string', `'charset' must be a string with length >= 2.`);
+      const charsetArr = safeCharset(charset);
+      expect(
+        charsetArr.length >= base,
+        `Charset length(${charsetArr.length}) must > base(${base}).`
+      );
+      return new NBaseInteger(Flag.PRIVATE, this.sgn, base, charsets.get(charset, charsetArr));
+    }
+    return new NBaseInteger(Flag.PRIVATE, this.sgn, base, this.#charset);
+  }
+
+  convertTo10(): number {
+    let sum = 0;
+    for (let i = 0; i < this.#digits.length; i++) {
+      sum += this.#digits[i] * i ** this.#base;
+    }
+    return sum;
+  }
+
   clone() {
     // Here, this.sgn gives the value of #negative
     const clone = new NBaseInteger(Flag.PRIVATE, this.sgn, this.#base, this.#charset);
@@ -1288,6 +1314,13 @@ export class NBaseInteger {
       abs.push(this.#charset[d[i]]);
     }
     return `${this.#negative ? '-' : ''}${abs.join('')}`;
+  }
+
+  [Symbol.toPrimitive](hint: 'number' | 'string' | 'default'): string | number {
+    if (hint === 'number') {
+      return this.convertTo10();
+    }
+    return this.toString();
   }
   // #endregion
 }
