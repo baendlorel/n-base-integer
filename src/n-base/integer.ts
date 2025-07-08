@@ -1,6 +1,7 @@
-import { Ordering, MAX_BASE, CLASS_NAME, Flag } from './consts';
+import { Ordering, MAX_BASE, CLASS_NAME, Flag, Factory } from './consts';
 import { charsets, unshift0 } from './common';
-import { clearCharsetCache, expect, protect, safeCharset, safeInt } from './expect';
+import { expect, expectPrivateCalling } from './expect';
+import { safeCharset, safeInt } from './safe';
 
 interface NBaseIntegerDivResult {
   quotient: NBaseInteger;
@@ -379,66 +380,25 @@ const purgeZeros = (a: number[]): number[] => {
  * NBase is a class for n-base numeral system
  */
 export class NBaseInteger {
-  // # Creation
-  /**
-   * Factory method for creating NBaseInteger instances via Proxy.
-   */
-  static [Flag.CREATOR](
+  // # Factories
+  static [Factory.N_BASE](priv: symbol, n: number, base: number): NBaseInteger {
+    expectPrivateCalling(priv);
+    return new NBaseInteger(Flag.PRIVATE, n, base);
+  }
+
+  static [Factory.NSTR_BASE_CHRS](
     priv: symbol,
-    arg0: string | number,
-    arg1?: number,
-    arg2?: string
+    s: string,
+    base: number,
+    charset: readonly string[]
   ): NBaseInteger {
-    protect(priv);
-    // basic asserts
-    expect(
-      typeof arg2 === 'string' || arg2 === undefined,
-      `'charset' must be a string with length >= 2.`
-    );
-    expect(
-      Number.isSafeInteger(arg1) && 2 <= (arg1 as number) && (arg1 as number) <= MAX_BASE,
-      `'base' must be an integer from 2 to ${MAX_BASE}.`
-    );
-    expect(
-      Number.isSafeInteger(arg0) || (typeof arg0 === 'string' && /^[-]{0,1}[^-]+$/.test(arg0)),
-      `'n' must be an integer or a string.`
-    );
-
-    /**
-     * After assertion, now we have
-     * - arg0  is an integer or a string(length > 0)
-     * - arg1? is an integer from 2 to MAX_BASE
-     * - arg2? is a string(length >= 2)
-     */
-
-    // & Now we need to do further checks
-    let _charset = charsets.default;
-    let _base = 10;
-
-    if (arg2 !== undefined) {
-      expect(arg1 !== undefined, `'base' must be defined when 'charset' is defined.`);
-      const charsetArr = safeCharset(arg2, arg1);
-      expect(
-        charsetArr.length >= arg1,
-        `Charset length(${charsetArr.length}) must > base(${arg1}).`
-      );
-      _charset = charsetArr;
-      _base = arg1 as number;
-    } else if (arg1 !== undefined) {
-      _base = arg1;
+    expectPrivateCalling(priv);
+    const a = new NBaseInteger(Flag.PRIVATE, 0, base);
+    a.#digits = parse(s.replace('-', ''), base, charset);
+    if (!a.isZero && s[0] === '-') {
+      a.#negative = true;
     }
-
-    if (typeof arg0 === 'number') {
-      return new NBaseInteger(Flag.PRIVATE, arg0, _base);
-    } else {
-      const a = new NBaseInteger(Flag.PRIVATE, 0, _base);
-      // & About `n` whether contains unknown chars will be checked in `parse`
-      a.#digits = parse(arg0.replace('-', ''), _base, _charset);
-      if (!a.isZero && arg0[0] === '-') {
-        a.#negative = true;
-      }
-      return a;
-    }
+    return a;
   }
 
   /**
@@ -460,16 +420,6 @@ export class NBaseInteger {
   }
 
   /**
-   * We use a `Map<charset, charsArray>` to cache charsets
-   * - Since `charset` is a string, we cannot use WeakMap
-   * - You can clear it to free memory
-   * @returns
-   */
-  static clearCharsetCache() {
-    return clearCharsetCache();
-  }
-
-  /**
    * Ensure argument is a valid NBaseInteger or number. Optionally clone.
    * @param arg The argument to check.
    * @param clone Whether to clone the instance.
@@ -483,11 +433,10 @@ export class NBaseInteger {
 
     // b is also an NBaseInteger
     if (arg instanceof NBaseInteger) {
-      const n = arg;
-      if (n.#base !== this.#base) {
+      if (arg.#base !== this.#base) {
         throw new TypeError(`Called with a ${CLASS_NAME} with different base.`);
       }
-      return clone === Flag.CLONE ? n.clone() : n;
+      return clone === Flag.CLONE ? arg.clone() : arg;
     }
     throw new TypeError(`Called with an invalid argument. Expected number or ${CLASS_NAME}.`);
   }
@@ -571,7 +520,7 @@ export class NBaseInteger {
    * Protected constructor. Use factory methods to create instances.
    */
   constructor(priv: symbol, n: number, base: number) {
-    protect(
+    expectPrivateCalling(
       priv,
       `The constructor of ${CLASS_NAME} is protected, please use ${CLASS_NAME}(...args) instead.`
     );
@@ -1272,7 +1221,7 @@ export class NBaseInteger {
   // todo 完成convertTo函数
   convertTo(base: number, charset?: string): NBaseInteger {
     expect(
-      Number.isSafeInteger(base) && 2 <= base && base <= MAX_BASE,
+      isSafeInt(base) && 2 <= base && base <= MAX_BASE,
       `'base' must be an integer from 2 to ${MAX_BASE}.`
     );
     if (charset !== undefined) {
@@ -1287,7 +1236,7 @@ export class NBaseInteger {
     return new NBaseInteger(Flag.PRIVATE, this.sgn, base);
   }
 
-  convertTo10(): number {
+  #to10Base(): number {
     let sum = 0;
     for (let i = 0; i < this.#digits.length; i++) {
       sum += this.#digits[i] * i ** this.#base;
@@ -1308,13 +1257,13 @@ export class NBaseInteger {
    * - If `charset` is a string, use it to stringify every digit after check.
    * @param charset The charset to use for conversion.
    */
-  toString(charset: string | null | symbol = Flag.NOT_GIVEN): string {
+  toString(charset?: string | null): string {
     let charsetArr;
     if (charset === null) {
       return this.#digits.toReversed().join(',');
     } else if (typeof charset === 'string') {
       charsetArr = safeCharset(charset, this.#base);
-    } else if (charset === Flag.NOT_GIVEN) {
+    } else if (charset === undefined) {
       charsetArr = charsets.default;
       if (this.#base > charsetArr.length) {
         return this.#digits.toReversed().join(',');
@@ -1331,10 +1280,7 @@ export class NBaseInteger {
   }
 
   [Symbol.toPrimitive](hint: 'number' | 'string' | 'default'): string | number {
-    if (hint === 'number') {
-      return this.convertTo10();
-    }
-    return this.toString();
+    return hint === 'number' ? this.#to10Base() : this.toString();
   }
   // #endregion
 }

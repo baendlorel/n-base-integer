@@ -18,6 +18,9 @@ export const enum Ordering {
 export const Flag = {
   CLONE: Symbol('clone'),
   PRIVATE: Symbol('private'),
-  CREATOR: Symbol('creator'),
-  NOT_GIVEN: Symbol('not-given'),
+};
+
+export const Factory = {
+  N_BASE: Symbol('n,base'),
+  NSTR_BASE_CHRS: Symbol('nstr,base,charset'),
 };
