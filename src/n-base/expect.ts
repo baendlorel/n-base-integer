@@ -23,21 +23,25 @@ export const expect: (o: unknown, msg: string) => asserts o = (o: unknown, msg: 
 /**
  * Support emojis
  */
-export const safeCharset = (charset: string) => {
-  const charsetArr = Array.from(charset);
-  const deduped = new Set(charsetArr);
-  if (charsetArr.length !== deduped.size) {
+export const safeCharset = (charset: string, base: number) => {
+  const arr = Array.from(charset);
+  const deduped = new Set(arr);
+  if (arr.length !== deduped.size) {
     throw new RangeError(`'charset' must not contain duplicate chars.`);
   }
   if (deduped.has('-')) {
-    throw new TypeError(
-      `'charset' must not contain '-'. If the first digit is '-', we cannot not distinguish it from a negative sign.`
-    );
+    throw new TypeError(`'charset' must not contain '-'. It is reserved to be the negative sign.`);
   }
-  if (deduped.size < 2) {
+  if (deduped.has(',')) {
+    throw new TypeError(`'charset' must not contain ','. It is reserved to be the seperator.`);
+  }
+  if (arr.length < 2) {
     throw new RangeError(`'charset' must contain at least 2 chars.`);
   }
-  return charsetArr;
+  if (arr.length > base) {
+    throw new RangeError(`charset.length(${arr.length}) must <= base(${base}).`);
+  }
+  return arr;
 };
 
 export const safeInt = (n: number) => {

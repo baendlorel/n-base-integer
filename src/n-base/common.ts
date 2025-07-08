@@ -62,8 +62,6 @@ let defaultCharset = Object.freeze([
   'y',
   'z',
 ]);
-const charsetMap = new Map<string, readonly string[]>();
-charsetMap.set('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', defaultCharset);
 
 export const charsets = {
   get default() {
@@ -73,25 +71,8 @@ export const charsets = {
   /**
    * ! ONLY use when charset is checked
    */
-  setDefault(charset: string, charsetArr: string[]) {
+  setDefault(charsetArr: string[]) {
     defaultCharset = Object.freeze(charsetArr.slice());
-    charsetMap.set(charset, defaultCharset);
-    return defaultCharset;
-  },
-
-  /**
-   * ! ONLY use when charset is checked
-   * Get the reference of a charset array.
-   * - If the target does not exist, it will create a new one.
-   * @param charset
-   */
-  get(charset: string, charsetArr: string[]) {
-    if (charsetMap.has(charset)) {
-      return charsetMap.get(charset) as readonly string[];
-    }
-    const newCharsetArr = Object.freeze(charsetArr.slice());
-    charsetMap.set(charset, newCharsetArr);
-    return newCharsetArr;
   },
 };
 

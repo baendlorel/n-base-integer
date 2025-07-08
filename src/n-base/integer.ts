@@ -383,70 +383,61 @@ export class NBaseInteger {
   /**
    * Factory method for creating NBaseInteger instances via Proxy.
    */
-  static [Flag.CREATOR](priv: symbol, ...args: (string | number)[]): NBaseInteger {
+  static [Flag.CREATOR](
+    priv: symbol,
+    arg0: string | number,
+    arg1?: number,
+    arg2?: string
+  ): NBaseInteger {
     protect(priv);
-    expect(args.length <= 3, `To many arguments for ${CLASS_NAME}(...args).`);
-    const [n, base, charset] = args;
     // basic asserts
-    switch (args.length) {
-      case 0:
-        throw new Error(`${CLASS_NAME}(...args) does not have enough arguments.`);
-      case 3:
-        expect(typeof charset === 'string', `'charset' must be a string with length >= 2.`);
-      // eslint-disable-next-line no-fallthrough
-      case 2:
-        expect(
-          Number.isSafeInteger(base) && 2 <= (base as number) && (base as number) <= MAX_BASE,
-          `'base' must be an integer from 2 to ${MAX_BASE}.`
-        );
-      // eslint-disable-next-line no-fallthrough
-      case 1:
-        expect(
-          Number.isSafeInteger(n) || (typeof n === 'string' && /^[-]{0,1}[^-]+$/.test(n)),
-          `'n' must be an integer or a string.`
-        );
-        break;
-      default:
-        throw new Error(`To many arguments for ${CLASS_NAME}(...args).`);
-    }
+    expect(
+      typeof arg2 === 'string' || arg2 === undefined,
+      `'charset' must be a string with length >= 2.`
+    );
+    expect(
+      Number.isSafeInteger(arg1) && 2 <= (arg1 as number) && (arg1 as number) <= MAX_BASE,
+      `'base' must be an integer from 2 to ${MAX_BASE}.`
+    );
+    expect(
+      Number.isSafeInteger(arg0) || (typeof arg0 === 'string' && /^[-]{0,1}[^-]+$/.test(arg0)),
+      `'n' must be an integer or a string.`
+    );
 
     /**
      * After assertion, now we have
-     * - arg0  is an integer or a string with length > 0
+     * - arg0  is an integer or a string(length > 0)
      * - arg1? is an integer from 2 to MAX_BASE
-     * - arg2? is a string with length >= 2
+     * - arg2? is a string(length >= 2)
      */
 
     // & Now we need to do further checks
     let _charset = charsets.default;
     let _base = 10;
 
-    switch (args.length) {
-      case 3: {
-        const charsetArr = safeCharset(charset as string);
-        expect(
-          charsetArr.length >= (base as number),
-          `Charset length(${charsetArr.length}) must > base(${base}).`
-        );
-        _charset = charsets.get(charset as string, charsetArr);
-        _base = base as number;
+    if (arg2 !== undefined) {
+      expect(arg1 !== undefined, `'base' must be defined when 'charset' is defined.`);
+      const charsetArr = safeCharset(arg2, arg1);
+      expect(
+        charsetArr.length >= arg1,
+        `Charset length(${charsetArr.length}) must > base(${arg1}).`
+      );
+      _charset = charsetArr;
+      _base = arg1 as number;
+    } else if (arg1 !== undefined) {
+      _base = arg1;
+    }
+
+    if (typeof arg0 === 'number') {
+      return new NBaseInteger(Flag.PRIVATE, arg0, _base);
+    } else {
+      const a = new NBaseInteger(Flag.PRIVATE, 0, _base);
+      // & About `n` whether contains unknown chars will be checked in `parse`
+      a.#digits = parse(arg0.replace('-', ''), _base, _charset);
+      if (!a.isZero && arg0[0] === '-') {
+        a.#negative = true;
       }
-      // eslint-disable-next-line no-fallthrough
-      case 2:
-        _base = base as number;
-      // eslint-disable-next-line no-fallthrough
-      case 1:
-        if (typeof n === 'number') {
-          return new NBaseInteger(Flag.PRIVATE, n, _base, _charset);
-        } else {
-          const a = new NBaseInteger(Flag.PRIVATE, 0, _base, _charset);
-          // & About `n` whether contains unknown chars will be checked in `parse`
-          a.#digits = parse(n.replace('-', ''), _base, _charset);
-          if (!a.isZero && n[0] === '-') {
-            a.#negative = true;
-          }
-          return a;
-        }
+      return a;
     }
   }
 
@@ -461,11 +452,11 @@ export class NBaseInteger {
    * Set the default charset for NBaseInteger.
    */
   static set charset(charset: string) {
-    const charsetArr = safeCharset(charset);
+    const charsetArr = safeCharset(charset, MAX_BASE);
     if (charsetArr.length > MAX_BASE) {
       throw new RangeError(`Default charset length should less than ${MAX_BASE}.`);
     }
-    charsets.setDefault(charset, charsetArr);
+    charsets.setDefault(charsetArr);
   }
 
   /**
@@ -477,7 +468,7 @@ export class NBaseInteger {
     // b is a normal number
     if (typeof arg === 'number') {
       const n = safeInt(arg);
-      return new NBaseInteger(Flag.PRIVATE, n, this.#base, this.#charset);
+      return new NBaseInteger(Flag.PRIVATE, n, this.#base);
     }
 
     // b is also an NBaseInteger
@@ -486,15 +477,6 @@ export class NBaseInteger {
       if (n.#base !== this.#base) {
         throw new TypeError(`Called with a ${CLASS_NAME} with different base.`);
       }
-
-      /**
-       * & This works because each charset string will map to a charset array.
-       * & So if there strings are equal, their arrays would be equal too.
-       * @see ./common.ts -- charsetMap
-       */
-      if (n.#charset !== this.#charset) {
-        throw new TypeError(`Called with a ${CLASS_NAME} with different charset.`);
-      }
       return clone === Flag.CLONE ? n.clone() : n;
     }
     throw new TypeError(`Called with an invalid argument. Expected number or ${CLASS_NAME}.`);
@@ -502,8 +484,6 @@ export class NBaseInteger {
 
   // #region properties
   readonly #base: number;
-
-  readonly #charset: readonly string[];
 
   #digits: number[];
 
@@ -514,10 +494,6 @@ export class NBaseInteger {
 
   get base(): number {
     return this.#base;
-  }
-
-  get charset(): string {
-    return this.#charset.join('');
   }
 
   /**
@@ -574,7 +550,7 @@ export class NBaseInteger {
   /**
    * Protected constructor. Use factory methods to create instances.
    */
-  constructor(priv: symbol, n: number, base: number, charset: readonly string[]) {
+  constructor(priv: symbol, n: number, base: number) {
     protect(
       priv,
       `The constructor of ${CLASS_NAME} is protected, please use ${CLASS_NAME}(...args) instead.`
@@ -582,7 +558,6 @@ export class NBaseInteger {
 
     // assign essential properties
     this.#base = base;
-    this.#charset = charset;
     if (n < 0) {
       n = -n;
       this.#negative = true;
@@ -820,8 +795,8 @@ export class NBaseInteger {
     const base = this.#base;
     if (this.isZero) {
       return {
-        quotient: new NBaseInteger(Flag.PRIVATE, 0, base, this.#charset),
-        remainder: new NBaseInteger(Flag.PRIVATE, 0, base, this.#charset),
+        quotient: new NBaseInteger(Flag.PRIVATE, 0, base),
+        remainder: new NBaseInteger(Flag.PRIVATE, 0, base),
       };
     }
 
@@ -833,12 +808,12 @@ export class NBaseInteger {
       const v = Math.floor(ad[0] / 2);
       const r = ad[0] - v * 2;
       return {
-        quotient: new NBaseInteger(Flag.PRIVATE, v, base, this.#charset),
-        remainder: new NBaseInteger(Flag.PRIVATE, r, base, this.#charset),
+        quotient: new NBaseInteger(Flag.PRIVATE, v, base),
+        remainder: new NBaseInteger(Flag.PRIVATE, r, base),
       };
     }
 
-    const quotient = new NBaseInteger(Flag.PRIVATE, 0, base, this.#charset);
+    const quotient = new NBaseInteger(Flag.PRIVATE, 0, base);
     // divide by 2
     let carry = 0;
     for (let i = ad.length - 1; i >= 0; i--) {
@@ -847,7 +822,7 @@ export class NBaseInteger {
       carry = dividend - q * 2;
       quotient.#digits.unshift(q);
     }
-    const remainder = new NBaseInteger(Flag.PRIVATE, carry, base, this.#charset);
+    const remainder = new NBaseInteger(Flag.PRIVATE, carry, base);
 
     purgeZeros(quotient.#digits);
     return { quotient, remainder };
@@ -864,12 +839,12 @@ export class NBaseInteger {
     }
     if (a.isZero) {
       b.zero();
-      return { quotient: b, remainder: new NBaseInteger(Flag.PRIVATE, 0, a.#base, a.#charset) };
+      return { quotient: b, remainder: new NBaseInteger(Flag.PRIVATE, 0, a.#base) };
     }
 
     const result = {
       quotient: b,
-      remainder: new NBaseInteger(Flag.PRIVATE, 0, a.#base, a.#charset),
+      remainder: new NBaseInteger(Flag.PRIVATE, 0, a.#base),
     };
     const qr = divide(a.#digits, b.#digits, a.#base);
     b.#digits = qr.quotient;
@@ -995,7 +970,7 @@ export class NBaseInteger {
    * @param b The exponent.
    */
   static #pow(a: NBaseInteger, b: NBaseInteger): NBaseInteger {
-    const result = new NBaseInteger(Flag.PRIVATE, 0, a.#base, a.#charset);
+    const result = new NBaseInteger(Flag.PRIVATE, 0, a.#base);
     result.#digits = pow(a.#digits, b.#digits, a.#base);
     result.#negative = a.#negative && b.isOdd;
     return result;
@@ -1007,7 +982,7 @@ export class NBaseInteger {
    * @param b The exponent in 10-base.
    */
   static #powWith10Base(a: NBaseInteger, b: number): NBaseInteger {
-    const result = new NBaseInteger(Flag.PRIVATE, 0, a.#base, a.#charset);
+    const result = new NBaseInteger(Flag.PRIVATE, 0, a.#base);
     result.#digits = powWith10Base(a.#digits, b, a.#base);
     result.#negative = a.#negative && b % 2 === 1;
     return result;
@@ -1028,10 +1003,10 @@ export class NBaseInteger {
         throw new RangeError('Exponent must be non-negative.');
       }
       if (b === 0) {
-        return new NBaseInteger(Flag.PRIVATE, 1, this.#base, this.#charset); // a^0 = 1
+        return new NBaseInteger(Flag.PRIVATE, 1, this.#base); // a^0 = 1
       }
       if (this.isZero) {
-        return new NBaseInteger(Flag.PRIVATE, 0, this.#base, this.#charset); // a^0 = 1
+        return new NBaseInteger(Flag.PRIVATE, 0, this.#base); // a^0 = 1
       }
       return NBaseInteger.#powWith10Base(this, arg);
     }
@@ -1042,10 +1017,10 @@ export class NBaseInteger {
         throw new RangeError('Exponent must be non-negative.');
       }
       if (b.isZero) {
-        return new NBaseInteger(Flag.PRIVATE, 1, this.#base, this.#charset); // a^0 = 1
+        return new NBaseInteger(Flag.PRIVATE, 1, this.#base); // a^0 = 1
       }
       if (this.isZero) {
-        return new NBaseInteger(Flag.PRIVATE, 0, this.#base, this.#charset); // a^0 = 1
+        return new NBaseInteger(Flag.PRIVATE, 0, this.#base); // a^0 = 1
       }
       return NBaseInteger.#pow(this, arg);
     }
@@ -1282,14 +1257,14 @@ export class NBaseInteger {
     );
     if (charset !== undefined) {
       expect(typeof charset === 'string', `'charset' must be a string with length >= 2.`);
-      const charsetArr = safeCharset(charset);
+      const charsetArr = safeCharset(charset, base);
       expect(
         charsetArr.length >= base,
         `Charset length(${charsetArr.length}) must > base(${base}).`
       );
-      return new NBaseInteger(Flag.PRIVATE, this.sgn, base, charsets.get(charset, charsetArr));
+      return new NBaseInteger(Flag.PRIVATE, this.sgn, base);
     }
-    return new NBaseInteger(Flag.PRIVATE, this.sgn, base, this.#charset);
+    return new NBaseInteger(Flag.PRIVATE, this.sgn, base);
   }
 
   convertTo10(): number {
@@ -1302,16 +1277,17 @@ export class NBaseInteger {
 
   clone() {
     // Here, this.sgn gives the value of #negative
-    const clone = new NBaseInteger(Flag.PRIVATE, this.sgn, this.#base, this.#charset);
+    const clone = new NBaseInteger(Flag.PRIVATE, this.sgn, this.#base);
     clone.#digits = this.#digits.slice();
     return clone;
   }
 
-  toString(): string {
+  toString(charset?: string): string {
+    const charsetArr = charset ? safeCharset(charset, this.#base) : charsets.default;
     const abs: string[] = [];
     const d = this.#digits;
     for (let i = d.length - 1; i >= 0; i--) {
-      abs.push(this.#charset[d[i]]);
+      abs.push(charsetArr[d[i]]);
     }
     return `${this.#negative ? '-' : ''}${abs.join('')}`;
   }
