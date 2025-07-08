@@ -380,6 +380,9 @@ const purgeZeros = (a: number[]): number[] => {
  */
 export class NBaseInteger {
   // # Creation
+  /**
+   * Factory method for creating NBaseInteger instances via Proxy.
+   */
   static [Flag.CREATOR](priv: symbol, ...args: (string | number)[]): NBaseInteger {
     protect(priv);
     expect(args.length <= 3, `To many arguments for ${CLASS_NAME}(...args).`);
@@ -390,11 +393,13 @@ export class NBaseInteger {
         throw new Error(`${CLASS_NAME}(...args) does not have enough arguments.`);
       case 3:
         expect(typeof charset === 'string', `'charset' must be a string with length >= 2.`);
+      // eslint-disable-next-line no-fallthrough
       case 2:
         expect(
           Number.isSafeInteger(base) && 2 <= (base as number) && (base as number) <= MAX_BASE,
           `'base' must be an integer from 2 to ${MAX_BASE}.`
         );
+      // eslint-disable-next-line no-fallthrough
       case 1:
         expect(
           Number.isSafeInteger(n) || (typeof n === 'string' && /^[-]{0,1}[^-]+$/.test(n)),
@@ -426,8 +431,10 @@ export class NBaseInteger {
         _charset = charsets.get(charset as string, charsetArr);
         _base = base as number;
       }
+      // eslint-disable-next-line no-fallthrough
       case 2:
         _base = base as number;
+      // eslint-disable-next-line no-fallthrough
       case 1:
         if (typeof n === 'number') {
           return new NBaseInteger(Flag.PRIVATE, n, _base, _charset);
@@ -462,12 +469,9 @@ export class NBaseInteger {
   }
 
   /**
-   * Ensure argument is a valid NBaseInteger or number.
-   * - will create an NBaseInteger when `arg` is a number.
-   * - will return `arg` directly when it is already an NBaseInteger
-   *
+   * Ensure argument is a valid NBaseInteger or number. Optionally clone.
    * @param arg The argument to check.
-   * @param clone default is `false`. Whether to clone the instance.
+   * @param clone Whether to clone the instance.
    */
   #safeOther(arg: number | NBaseInteger, clone?: symbol): NBaseInteger {
     // b is a normal number
@@ -478,8 +482,8 @@ export class NBaseInteger {
 
     // b is also an NBaseInteger
     if (arg instanceof NBaseInteger) {
-      const nbi = arg;
-      if (nbi.#base !== this.#base) {
+      const n = arg;
+      if (n.#base !== this.#base) {
         throw new TypeError(`Called with a ${CLASS_NAME} with different base.`);
       }
 
@@ -488,16 +492,17 @@ export class NBaseInteger {
        * & So if there strings are equal, their arrays would be equal too.
        * @see ./common.ts -- charsetMap
        */
-      if (nbi.#charset !== this.#charset) {
+      if (n.#charset !== this.#charset) {
         throw new TypeError(`Called with a ${CLASS_NAME} with different charset.`);
       }
-      return clone === Flag.CLONE ? nbi.clone() : nbi;
+      return clone === Flag.CLONE ? n.clone() : n;
     }
     throw new TypeError(`Called with an invalid argument. Expected number or ${CLASS_NAME}.`);
   }
 
   // #region properties
   readonly #base: number;
+
   readonly #charset: readonly string[];
 
   #digits: number[];
@@ -515,10 +520,16 @@ export class NBaseInteger {
     return this.#charset.join('');
   }
 
+  /**
+   * `true` if the number is zero.
+   */
   get isZero(): boolean {
     return isZero(this.#digits);
   }
 
+  /**
+   * `true` if the number is odd.
+   */
   get isOdd(): boolean {
     if (this.#base % 2 === 0) {
       return this.#digits[0] % 2 === 1;
@@ -530,6 +541,9 @@ export class NBaseInteger {
     return x === 1;
   }
 
+  /**
+   * `true` if the number is even.
+   */
   get isEven(): boolean {
     if (this.#base % 2 === 0) {
       return this.#digits[0] % 2 === 0;
@@ -542,8 +556,8 @@ export class NBaseInteger {
   }
 
   /**
-   * Same as sgn(x)
-   * - -1 for negative, 0 for zero, 1 for positive
+   * Returns the sign of the number: `-1`, `0`, or `1`.
+   * - Same as `sgn(x)` in math.
    */
   get sgn(): -1 | 0 | 1 {
     if (this.#negative) {
@@ -557,10 +571,13 @@ export class NBaseInteger {
   // #endregion
 
   // #region constructor
+  /**
+   * Protected constructor. Use factory methods to create instances.
+   */
   constructor(priv: symbol, n: number, base: number, charset: readonly string[]) {
     protect(
       priv,
-      `The constructor of ${CLASS_NAME} is protected, please use ${CLASS_NAME}.from instead.`
+      `The constructor of ${CLASS_NAME} is protected, please use ${CLASS_NAME}(...args) instead.`
     );
 
     // assign essential properties
@@ -588,9 +605,7 @@ export class NBaseInteger {
   // # Calculations. Ensure bases and charsets are same, then call this
   // #region add/sub
   /**
-   * This functions means `b = a + b`
-   * - `a.#digits` is copied, so it is safe to call like `a.add(a)`.
-   *
+   * Adds a to b and stores the result in b.
    * @param a The first operand.
    * @param b The second operand (result stored here).
    */
@@ -625,30 +640,78 @@ export class NBaseInteger {
     return b;
   }
 
-  add(nbi: NBaseInteger): NBaseInteger;
+  /**
+   * Returns the sum of `this` and the argument.
+   * @param n The number to add.
+   */
+  add(n: NBaseInteger): NBaseInteger;
+  /**
+   * Returns the sum of `this` and the argument.
+   * @param n The number to add.
+   */
   add(n: number): NBaseInteger;
+  /**
+   * Returns the sum of `this` and the argument.
+   * @param arg The number or NBaseInteger to add.
+   */
   add(arg: number | NBaseInteger): NBaseInteger {
     const other = this.#safeOther(arg, Flag.CLONE);
     return NBaseInteger.#addAToB(this, other);
   }
 
-  addAssign(nbi: NBaseInteger): NBaseInteger;
+  /**
+   * Adds the argument to `this` in place.
+   * @param n The number to add.
+   */
+  addAssign(n: NBaseInteger): NBaseInteger;
+  /**
+   * Adds the argument to `this` in place.
+   * @param n The number to add.
+   */
   addAssign(n: number): NBaseInteger;
+  /**
+   * Adds the argument to `this` in place.
+   * @param arg The number or NBaseInteger to add.
+   */
   addAssign(arg: number | NBaseInteger): NBaseInteger {
     const other = this.#safeOther(arg);
     return NBaseInteger.#addAToB(other, this);
   }
 
-  sub(nbi: NBaseInteger): NBaseInteger;
+  /**
+   * Returns the result of `this` minus the argument.
+   * @param n The number to subtract.
+   */
+  sub(n: NBaseInteger): NBaseInteger;
+  /**
+   * Returns the result of `this` minus the argument.
+   * @param n The number to subtract.
+   */
   sub(n: number): NBaseInteger;
+  /**
+   * Returns the result of `this` minus the argument.
+   * @param arg The number or NBaseInteger to subtract.
+   */
   sub(arg: number | NBaseInteger): NBaseInteger {
     const other = this.#safeOther(arg, Flag.CLONE);
     other.negateAssign();
     return NBaseInteger.#addAToB(this, other);
   }
 
-  subAssign(nbi: NBaseInteger): NBaseInteger;
+  /**
+   * Subtracts the argument from `this` in place.
+   * @param n The number to subtract.
+   */
+  subAssign(n: NBaseInteger): NBaseInteger;
+  /**
+   * Subtracts the argument from `this` in place.
+   * @param n The number to subtract.
+   */
   subAssign(n: number): NBaseInteger;
+  /**
+   * Subtracts the argument from `this` in place.
+   * @param arg The number or NBaseInteger to subtract.
+   */
   subAssign(arg: number | NBaseInteger): NBaseInteger {
     const other = this.#safeOther(arg);
     other.negateAssign();
@@ -660,8 +723,7 @@ export class NBaseInteger {
 
   // #region inrecment/decrement
   /**
-   * Means `i++`
-   * - equal to `i.addAssign(1)`
+   * Increments `this` by 1 in place.
    */
   inc(): NBaseInteger {
     const d = this.#digits;
@@ -680,8 +742,7 @@ export class NBaseInteger {
   }
 
   /**
-   * Means `i--`
-   * - equal to `i.subAssign(1)`
+   * Decrements `this` by 1 in place.
    */
   dec(): NBaseInteger {
     const d = this.#digits;
@@ -704,9 +765,7 @@ export class NBaseInteger {
 
   // #region multiply
   /**
-   * This functions means `b = a * b`
-   * - `a.#digits` is copied, so it is safe to call like `a.mul(a)`.
-   *
+   * Multiplies a and b and stores the result in b.
    * @param a The first operand.
    * @param b The second operand (result stored here).
    */
@@ -716,15 +775,37 @@ export class NBaseInteger {
     return b;
   }
 
-  mul(nbi: NBaseInteger): NBaseInteger;
+  /**
+   * Returns the product of `this` and the argument.
+   * @param n The number to multiply.
+   */
+  mul(n: NBaseInteger): NBaseInteger;
+  /**
+   * Returns the product of `this` and the argument.
+   * @param n The number to multiply.
+   */
   mul(n: number): NBaseInteger;
+  /**
+   * Returns the product of `this` and the argument.
+   */
   mul(arg: number | NBaseInteger): NBaseInteger {
     const other = this.#safeOther(arg, Flag.CLONE);
     return NBaseInteger.#mulAToB(this, other);
   }
 
-  mulAssgin(nbi: NBaseInteger): NBaseInteger;
+  /**
+   * Multiplies `this` by the argument in place.
+   * @param n The number to multiply.
+   */
+  mulAssgin(n: NBaseInteger): NBaseInteger;
+  /**
+   * Multiplies `this` by the argument in place.
+   * @param n The number to multiply.
+   */
   mulAssgin(n: number): NBaseInteger;
+  /**
+   * Multiplies `this` by the argument in place.
+   */
   mulAssgin(arg: number | NBaseInteger): NBaseInteger {
     const other = this.#safeOther(arg);
     return NBaseInteger.#mulAToB(other, this);
@@ -732,6 +813,9 @@ export class NBaseInteger {
   // #endregion
 
   // #region division
+  /**
+   * Divides `this` by 2 and returns quotient and remainder.
+   */
   divmod2(): NBaseIntegerDivResult {
     const base = this.#base;
     if (this.isZero) {
@@ -770,7 +854,9 @@ export class NBaseInteger {
   }
 
   /**
-   * a / b = q ... r
+   * Divides a by b and returns quotient and remainder.
+   * @param a The dividend.
+   * @param b The divisor.
    */
   static #divAToB(a: NBaseInteger, b: NBaseInteger): NBaseIntegerDivResult {
     if (b.isZero) {
@@ -792,24 +878,65 @@ export class NBaseInteger {
     return result;
   }
 
-  divmod(nbi: NBaseInteger): NBaseIntegerDivResult;
+  /**
+   * Returns the quotient and remainder of this divided by the argument.
+   * @param n The divisor.
+   */
+  divmod(n: NBaseInteger): NBaseIntegerDivResult;
+  /**
+   * Returns the quotient and remainder of this divided by the argument.
+   * @param n The divisor.
+   */
   divmod(n: number): NBaseIntegerDivResult;
+  /**
+   * Returns the quotient and remainder of this divided by the argument.
+   */
   divmod(arg: number | NBaseInteger): NBaseIntegerDivResult {
     const other = this.#safeOther(arg, Flag.CLONE);
     const result = NBaseInteger.#divAToB(this, other);
     return result;
   }
 
-  div(nbi: NBaseInteger): NBaseInteger;
+  /**
+   * Returns the quotient of this divided by the argument.
+   * - the quotient is `Math.floor(this / n)`.
+   * - the remainder is `this - n * quotient`.
+   * @param n The divisor.
+   */
+  div(n: NBaseInteger): NBaseInteger;
+  /**
+   * Returns the quotient of this divided by the argument.
+   * - the quotient is Math.floor(this / n).
+   * - the remainder is `this - n * quotient`.
+   * @param n The divisor.
+   */
   div(n: number): NBaseInteger;
+  /**
+   * Returns the quotient of this divided by the argument.
+   */
   div(arg: number | NBaseInteger): NBaseInteger {
     const other = this.#safeOther(arg, Flag.CLONE);
     const result = NBaseInteger.#divAToB(this, other);
     return result.quotient;
   }
 
-  divAssign(nbi: NBaseInteger): NBaseInteger;
+  /**
+   * Divides `this` by the argument in place.
+   * - the quotient is Math.floor(this / n).
+   * - ignores the remainder.
+   * @param n The divisor.
+   */
+  divAssign(n: NBaseInteger): NBaseInteger;
+  /**
+   * Divides `this` by the argument in place.
+   * - the quotient is Math.floor(this / n).
+   * - ignores the remainder.
+   * @param n The divisor.
+   */
   divAssign(n: number): NBaseInteger;
+  /**
+   * Divides `this` by the argument in place.
+   */
   divAssign(arg: number | NBaseInteger): NBaseInteger {
     const other = this.#safeOther(arg, Flag.CLONE);
     const result = NBaseInteger.#divAToB(this, other);
@@ -818,7 +945,19 @@ export class NBaseInteger {
     return this;
   }
 
-  mod(nbi: NBaseInteger): NBaseInteger;
+  /**
+   * Returns the remainder of this divided by the argument.
+   * - the quotient is Math.floor(this / n).
+   * - the remainder is `this - n * quotient`.
+   * @param n The divisor.
+   */
+  mod(n: NBaseInteger): NBaseInteger;
+  /**
+   * Returns the remainder of this divided by the argument.
+   * - the quotient is Math.floor(this / n).
+   * - the remainder is `this - n * quotient`.
+   * @param n The divisor.
+   */
   mod(n: number): NBaseInteger;
   mod(arg: number | NBaseInteger): NBaseInteger {
     const other = this.#safeOther(arg, Flag.CLONE);
@@ -826,7 +965,19 @@ export class NBaseInteger {
     return result.remainder;
   }
 
-  modAssign(nbi: NBaseInteger): NBaseInteger;
+  /**
+   * Sets `this` to the remainder of division by the argument.
+   * - the quotient is Math.floor(this / n).
+   * - the remainder is `this - n * quotient`.
+   * @param n The divisor.
+   */
+  modAssign(n: NBaseInteger): NBaseInteger;
+  /**
+   * Sets `this` to the remainder of division by the argument.
+   * - the quotient is Math.floor(this / n).
+   * - the remainder is `this - n * quotient`.
+   * @param n The divisor.
+   */
   modAssign(n: number): NBaseInteger;
   modAssign(arg: number | NBaseInteger): NBaseInteger {
     const other = this.#safeOther(arg, Flag.CLONE);
@@ -835,13 +986,11 @@ export class NBaseInteger {
     this.#negative = result.remainder.#negative;
     return this;
   }
-
   // #endregion
 
   // #region power
   /**
-   * Calculate a^b.
-   * - 0^0 is considered as 1. Because in JS, 0**0 = 1
+   * Calculates a^b for two NBaseInteger instances.
    * @param a The base.
    * @param b The exponent.
    */
@@ -853,8 +1002,7 @@ export class NBaseInteger {
   }
 
   /**
-   * Calculate a^b.
-   * - 0^0 is considered as 1. Because in JS, 0**0 = 1
+   * Calculates a^b for NBaseInteger and number exponent.
    * @param a The base.
    * @param b The exponent in 10-base.
    */
@@ -865,7 +1013,13 @@ export class NBaseInteger {
     return result;
   }
 
-  pow(nbi: NBaseInteger): NBaseInteger;
+  /**
+   * Calculates `this` raised to the power of `n`.
+   */
+  pow(exponent: NBaseInteger): NBaseInteger;
+  /**
+   * Calculates `this` raised to the power of `n`.
+   */
   pow(exponent: number): NBaseInteger;
   pow(arg: number | NBaseInteger): NBaseInteger {
     if (typeof arg === 'number') {
@@ -898,9 +1052,14 @@ export class NBaseInteger {
 
     throw new TypeError(`Exponent should be a number or ${CLASS_NAME}.`);
   }
+
   // #endregion
 
   // #region signs
+  /**
+   * Sets the sign of `this`.
+   * @param sgn The sign to set (-1, 0, or 1).
+   */
   setSign(sgn: -1 | 0 | 1): NBaseInteger {
     switch (sgn) {
       case -1:
@@ -923,11 +1082,7 @@ export class NBaseInteger {
   }
 
   /**
-   * Get the additive inverse of this number
-   *
-   * @example
-   * NBaseInteger(5).negate() -> NBaseInteger(-5)
-   * NBaseInteger(0).negate() -> NBaseInteger(0)
+   * Returns the additive inverse of this number.
    */
   negate(): NBaseInteger {
     const other = this.clone();
@@ -937,6 +1092,9 @@ export class NBaseInteger {
     return other;
   }
 
+  /**
+   * Negates `this` in place.
+   */
   negateAssign(): NBaseInteger {
     if (!this.isZero) {
       this.#negative = !this.#negative;
@@ -944,23 +1102,27 @@ export class NBaseInteger {
     return this;
   }
 
+  /**
+   * Returns the absolute value of this number.
+   */
   abs(): NBaseInteger {
     const other = this.clone();
     other.#negative = false;
     return other;
   }
 
+  /**
+   * Sets `this` to its absolute value in place.
+   */
   absAssign(): NBaseInteger {
     this.#negative = false;
     return this;
   }
-
   // #endregion
 
   // #region comparisons
   /**
-   * Compare two NBaseInteger instances.
-   *
+   * Compares two NBaseInteger instances.
    * @param a The first operand.
    * @param b The second operand.
    */
@@ -994,8 +1156,7 @@ export class NBaseInteger {
   }
 
   /**
-   * Compare this instance with another.
-   *
+   * Compares `this` with another.
    * @param arg The value to compare with.
    */
   #cmp(arg: number | NBaseInteger): Ordering {
@@ -1004,8 +1165,7 @@ export class NBaseInteger {
   }
 
   /**
-   * Compare this instance with another ignoring sign.
-   *
+   * Compares `this` with another, ignoring sign.
    * @param arg The value to compare with.
    */
   #cmpAbs(arg: number | NBaseInteger): Ordering {
@@ -1013,76 +1173,88 @@ export class NBaseInteger {
     return cmp(this.#digits, other.#digits);
   }
 
-  eq(nbi: NBaseInteger): boolean;
+  cmp(n: NBaseInteger): -1 | 0 | 1;
+  cmp(n: number): -1 | 0 | 1;
+  cmp(arg: number | NBaseInteger): -1 | 0 | 1 {
+    return this.#cmp(arg);
+  }
+
+  cmpAbs(n: NBaseInteger): -1 | 0 | 1;
+  cmpAbs(n: number): -1 | 0 | 1;
+  cmpAbs(arg: number | NBaseInteger): -1 | 0 | 1 {
+    return this.#cmpAbs(arg);
+  }
+
+  eq(n: NBaseInteger): boolean;
   eq(n: number): boolean;
   eq(arg: number | NBaseInteger): boolean {
     return this.#cmp(arg) === Ordering.Equal;
   }
 
-  ne(nbi: NBaseInteger): boolean;
+  ne(n: NBaseInteger): boolean;
   ne(n: number): boolean;
   ne(arg: number | NBaseInteger): boolean {
     return this.#cmp(arg) !== Ordering.Equal;
   }
 
-  gt(nbi: NBaseInteger): boolean;
+  gt(n: NBaseInteger): boolean;
   gt(n: number): boolean;
   gt(arg: number | NBaseInteger): boolean {
     return this.#cmp(arg) === Ordering.Greater;
   }
 
-  gte(nbi: NBaseInteger): boolean;
+  gte(n: NBaseInteger): boolean;
   gte(n: number): boolean;
   gte(arg: number | NBaseInteger): boolean {
     const o = this.#cmp(arg);
     return o === Ordering.Greater || o === Ordering.Equal;
   }
 
-  lt(nbi: NBaseInteger): boolean;
+  lt(n: NBaseInteger): boolean;
   lt(n: number): boolean;
   lt(arg: number | NBaseInteger): boolean {
     return this.#cmp(arg) === Ordering.Less;
   }
 
-  lte(nbi: NBaseInteger): boolean;
+  lte(n: NBaseInteger): boolean;
   lte(n: number): boolean;
   lte(arg: number | NBaseInteger): boolean {
     const o = this.#cmp(arg);
     return o === Ordering.Less || o === Ordering.Equal;
   }
 
-  eqAbs(nbi: NBaseInteger): boolean;
+  eqAbs(n: NBaseInteger): boolean;
   eqAbs(n: number): boolean;
   eqAbs(arg: number | NBaseInteger): boolean {
     return this.#cmpAbs(arg) === Ordering.Equal;
   }
 
-  neAbs(nbi: NBaseInteger): boolean;
+  neAbs(n: NBaseInteger): boolean;
   neAbs(n: number): boolean;
   neAbs(arg: number | NBaseInteger): boolean {
     return this.#cmpAbs(arg) !== Ordering.Equal;
   }
 
-  gtAbs(nbi: NBaseInteger): boolean;
+  gtAbs(n: NBaseInteger): boolean;
   gtAbs(n: number): boolean;
   gtAbs(arg: number | NBaseInteger): boolean {
     return this.#cmpAbs(arg) === Ordering.Greater;
   }
 
-  gteAbs(nbi: NBaseInteger): boolean;
+  gteAbs(n: NBaseInteger): boolean;
   gteAbs(n: number): boolean;
   gteAbs(arg: number | NBaseInteger): boolean {
     const o = this.#cmpAbs(arg);
     return o === Ordering.Greater || o === Ordering.Equal;
   }
 
-  ltAbs(nbi: NBaseInteger): boolean;
+  ltAbs(n: NBaseInteger): boolean;
   ltAbs(n: number): boolean;
   ltAbs(arg: number | NBaseInteger): boolean {
     return this.#cmpAbs(arg) === Ordering.Less;
   }
 
-  lteAbs(nbi: NBaseInteger): boolean;
+  lteAbs(n: NBaseInteger): boolean;
   lteAbs(n: number): boolean;
   lteAbs(arg: number | NBaseInteger): boolean {
     const o = this.#cmpAbs(arg);
@@ -1110,11 +1282,12 @@ export class NBaseInteger {
   }
 
   toString(): string {
-    const abs = this.#digits
-      .map((digit) => this.#charset[digit])
-      .reverse()
-      .join('');
-    return `${this.#negative ? '-' : ''}${abs}`;
+    const abs: string[] = [];
+    const d = this.#digits;
+    for (let i = d.length - 1; i >= 0; i--) {
+      abs.push(this.#charset[d[i]]);
+    }
+    return `${this.#negative ? '-' : ''}${abs.join('')}`;
   }
   // #endregion
 }

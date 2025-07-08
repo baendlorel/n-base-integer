@@ -8,6 +8,13 @@ describe('NBaseInteger comparison functions', () => {
   const negA = NBaseInteger(-123, 10);
   const negB = NBaseInteger(-456, 10);
 
+  it('cmp and cmpAbs', () => {
+    expect(a.cmp(c)).toBe(0);
+    expect(a.cmp(b)).toBe(-1);
+    expect(a.cmp(negA)).toBe(1);
+    expect(a.cmpAbs(negA)).toBe(0);
+  });
+
   // eq, ne
   it('eq and ne', () => {
     expect(a.eq(c)).toBe(true);

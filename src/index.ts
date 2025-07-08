@@ -1,6 +1,9 @@
 import { Flag } from './n-base/consts';
 import { NBaseInteger as NBI } from './n-base/integer';
 
+/**
+ * Factory for NBaseInteger. Allows function-style creation of NBaseInteger instances.
+ */
 export const NBaseInteger = new Proxy(NBI, {
   apply(target, thisArg, argArray) {
     return Reflect.apply(target[Flag.CREATOR], thisArg, [Flag.PRIVATE].concat(argArray));

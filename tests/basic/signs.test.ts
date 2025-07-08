@@ -56,4 +56,12 @@ describe('NBaseInteger signs', () => {
     expect(b.toString()).toBe('100');
     expect(b.isOdd).toBe(true);
   });
+
+  it('isEven', () => {
+    const a = NBaseInteger(620, 5);
+    expect(a.isEven).toBe(true);
+
+    const b = NBaseInteger(22, 5);
+    expect(b.isEven).toBe(true);
+  });
 });
