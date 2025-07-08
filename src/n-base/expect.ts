@@ -20,15 +20,24 @@ export const expect: (o: unknown, msg: string) => asserts o = (o: unknown, msg: 
   }
 };
 
+/**
+ * Support emojis
+ */
 export const safeCharset = (charset: string) => {
-  const deduped = new Set(charset.split(''));
-  if (charset.length !== deduped.size) {
+  const charsetArr = Array.from(charset);
+  const deduped = new Set(charsetArr);
+  if (charsetArr.length !== deduped.size) {
     throw new RangeError(`'charset' must not contain duplicate chars.`);
+  }
+  if (deduped.has('-')) {
+    throw new TypeError(
+      `'charset' must not contain '-'. If the first digit is '-', we cannot not distinguish it from a negative sign.`
+    );
   }
   if (deduped.size < 2) {
     throw new RangeError(`'charset' must contain at least 2 chars.`);
   }
-  return charset;
+  return charsetArr;
 };
 
 export const safeInt = (n: number) => {

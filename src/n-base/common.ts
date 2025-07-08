@@ -70,24 +70,28 @@ export const charsets = {
     return defaultCharset;
   },
 
-  setDefault(charset: string) {
-    defaultCharset = Object.freeze(charset.split(''));
+  /**
+   * ! ONLY use when charset is checked
+   */
+  setDefault(charset: string, charsetArr: string[]) {
+    defaultCharset = Object.freeze(charsetArr.slice());
     charsetMap.set(charset, defaultCharset);
+    return defaultCharset;
   },
 
   /**
+   * ! ONLY use when charset is checked
    * Get the reference of a charset array.
    * - If the target does not exist, it will create a new one.
    * @param charset
-   * @returns
    */
-  get(charset: string) {
+  get(charset: string, charsetArr: string[]) {
     if (charsetMap.has(charset)) {
       return charsetMap.get(charset) as readonly string[];
     }
-    const newCharset = Object.freeze(charset.split(''));
-    charsetMap.set(charset, newCharset);
-    return newCharset;
+    const newCharsetArr = Object.freeze(charsetArr.slice());
+    charsetMap.set(charset, newCharsetArr);
+    return newCharsetArr;
   },
 };
 

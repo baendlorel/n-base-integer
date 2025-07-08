@@ -19,24 +19,28 @@ interface PrimitiveDivResult {
  * ! ONLY use when `base` and `charset` is valid
  * - `base` <= `charset.length`
  * - `charset` has no duplicate chars
+ * - Numbers like '00124' will be purged to '124'
  */
 const parse = (n: string, base: number, charset: readonly string[]): number[] => {
   const map: Record<string, number> = {};
   for (let i = 0; i < base; i++) {
     map[charset[i]] = i;
   }
+
   const digits: number[] = [];
-  for (let i = 0; i < n.length; i++) {
-    const digit = map[n[i]];
-    if (!digit) {
+  const narr = Array.from(n); // use Array.from to support emoji chars
+  for (let i = narr.length - 1; i >= 0; i--) {
+    const digit = map[narr[i]];
+    // Cannot use `!digit` for it might be `!0`
+    if (digit === undefined) {
       throw new Error(
-        `Parsing failed, unknown char '${n[i]}' in '${n}' with charset = ${charset.join()}.`
+        `Parsing failed, unknown char '${narr[i]}' in '${n}' with charset = ${charset.join()}.`
       );
     }
     digits.push(digit);
   }
 
-  return digits;
+  return purgeZeros(digits);
 };
 
 const isZero = (a: readonly number[]): boolean => a.length === 1 && a[0] === 0;
@@ -394,7 +398,7 @@ export class NBaseInteger {
         );
       case 1:
         expect(
-          Number.isSafeInteger(n) || (typeof n === 'string' && n.length > 0),
+          Number.isSafeInteger(n) || (typeof n === 'string' && /^[-]{0,1}[^-]+$/.test(n)),
           `'n' must be an integer or a string.`
         );
         break;
@@ -414,10 +418,15 @@ export class NBaseInteger {
     let _base = 10;
 
     switch (args.length) {
-      case 3:
-        expect((charset as string).length >= (base as number), `Charset length must > base.`);
-        _charset = charsets.get(safeCharset(charset as string));
+      case 3: {
+        const charsetArr = safeCharset(charset as string);
+        expect(
+          charsetArr.length >= (base as number),
+          `Charset length(${charsetArr.length}) must > base(${base}).`
+        );
+        _charset = charsets.get(charset as string, charsetArr);
         _base = base as number;
+      }
       case 2:
         _base = base as number;
       case 1:
@@ -426,7 +435,10 @@ export class NBaseInteger {
         } else {
           const a = new NBaseInteger(Flag.PRIVATE, 0, _base, _charset);
           // & About `n` whether contains unknown chars will be checked in `parse`
-          a.#digits = parse(n, _base, _charset);
+          a.#digits = parse(n.replace('-', ''), _base, _charset);
+          if (!a.isZero && n[0] === '-') {
+            a.#negative = true;
+          }
           return a;
         }
     }
@@ -453,7 +465,7 @@ export class NBaseInteger {
     // create with custom charset
     if (typeof arg === 'string') {
       const charset = safeCharset(arg);
-      return new NBaseInteger(Flag.PRIVATE, n, charset.length, charsets.get(charset));
+      return new NBaseInteger(Flag.PRIVATE, n, charset.length, charsets.get(arg, charset));
     }
 
     throw new TypeError('Expect 2nd parameter to be a base or a charset.');
@@ -470,11 +482,11 @@ export class NBaseInteger {
    * Set the default charset for NBaseInteger.
    */
   static set charset(charset: string) {
-    charset = safeCharset(charset);
-    if (charset.length > MAX_BASE) {
+    const charsetArr = safeCharset(charset);
+    if (charsetArr.length > MAX_BASE) {
       throw new RangeError(`Default charset length should less than ${MAX_BASE}.`);
     }
-    charsets.setDefault(charset);
+    charsets.setDefault(charset, charsetArr);
   }
 
   /**
@@ -962,12 +974,12 @@ export class NBaseInteger {
 
   abs(): NBaseInteger {
     const other = this.clone();
-    other.#negative = true;
+    other.#negative = false;
     return other;
   }
 
   absAssign(): NBaseInteger {
-    this.#negative = true;
+    this.#negative = false;
     return this;
   }
 
@@ -1127,7 +1139,7 @@ export class NBaseInteger {
 
   toString(): string {
     const abs = this.#digits
-      .map((digit) => this.charset[digit])
+      .map((digit) => this.#charset[digit])
       .reverse()
       .join('');
     return `${this.#negative ? '-' : ''}${abs}`;

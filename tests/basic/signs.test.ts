@@ -25,18 +25,19 @@ describe('NBaseInteger signs', () => {
     const a = n(-789);
     expect(a.abs().toString()).toBe('789');
     expect(a.toString()).toBe('-789');
+    a.absAssign();
+    expect(a.toString()).toBe('789');
+
     const b = n(321);
     expect(b.abs().toString()).toBe('321');
     b.absAssign();
     expect(b.toString()).toBe('321');
-    a.absAssign();
-    expect(a.toString()).toBe('789');
   });
 
   it('setSign/setSignAssign', () => {
     const a = n(555);
     expect(a.setSign(-1).toString()).toBe('-555');
-    expect(a.toString()).toBe('555');
+    expect(a.toString()).toBe('-555');
   });
 
   it('sgn getter', () => {

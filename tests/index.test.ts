@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import { NBaseInteger } from '@/index';
-// Test for NBaseInteger.from and toString
+// Test for NBaseInteger and toString
 
 describe('NBaseInteger', () => {
   it('should be callable', () => {
@@ -11,7 +11,7 @@ describe('NBaseInteger', () => {
 
   it('should convert decimal to base62 string and back', () => {
     const n = 123456789;
-    const nbi = NBaseInteger.from(n, 62);
+    const nbi = NBaseInteger(n, 62);
     const str = nbi.toString();
     // base62 representation of 123456789
     expect(str).toBe('8M0kX');
@@ -20,17 +20,88 @@ describe('NBaseInteger', () => {
   it('should support custom charset', () => {
     const charset = '01'; // binary
     const n = 13;
-    const nbi = NBaseInteger.from(n, charset);
+    const nbi = NBaseInteger(n, 2, charset);
     expect(nbi.toString()).toBe('1101');
   });
 
   it('should throw on duplicate charset characters', () => {
-    expect(() => NBaseInteger.from(10, '0012')).toThrow();
+    expect(() => NBaseInteger(10, 4, '0012')).toThrow();
   });
 
   it('should throw on invalid base', () => {
-    expect(() => NBaseInteger.from(10, 1)).toThrow();
-    expect(() => NBaseInteger.from(10, 0)).toThrow();
-    expect(() => NBaseInteger.from(10, -2)).toThrow();
+    expect(() => NBaseInteger(10, 1)).toThrow();
+    expect(() => NBaseInteger(10, 0)).toThrow();
+    expect(() => NBaseInteger(10, -2)).toThrow();
+  });
+
+  it('should create from string and number equivalently', () => {
+    expect(NBaseInteger('123', 10).toString()).toBe('123');
+    expect(NBaseInteger('-456', 10).toString()).toBe('-456');
+    expect(NBaseInteger('0', 10).toString()).toBe('0');
+    expect(NBaseInteger(0, 10).toString()).toBe('0');
+    expect(NBaseInteger('-0', 10).toString()).toBe('0');
+  });
+
+  it('should handle very large and very small numbers', () => {
+    const big = '1234567890123456789012345678901234567890';
+    expect(NBaseInteger(big, 10).toString()).toBe(big);
+    expect(NBaseInteger('-' + big, 10).toString()).toBe('-' + big);
+    expect(NBaseInteger(Number.MAX_SAFE_INTEGER, 10).toString()).toBe(
+      Number.MAX_SAFE_INTEGER.toString()
+    );
+    expect(NBaseInteger(Number.MIN_SAFE_INTEGER, 10).toString()).toBe(
+      Number.MIN_SAFE_INTEGER.toString()
+    );
+  });
+
+  it('should support max base and min base', () => {
+    const maxBase = 62;
+    const minBase = 2;
+    expect(NBaseInteger(123, maxBase).toString()).toMatch(/[0-9A-Za-z]+/);
+    expect(NBaseInteger(1, minBase).toString()).toBe('1');
+    expect(() => NBaseInteger(1, 1)).toThrow();
+  });
+
+  it('should support custom charset with special chars', () => {
+    const charset = 'abc!@#';
+    expect(NBaseInteger(5, 6, charset).toString()).toMatch(/[abc!@#]+/);
+    const emojiCharset = '😀😁😂🤣😃😄😅😆';
+    expect(NBaseInteger(25431, 8, emojiCharset).toString()).toBe('😅😁😄😂😆');
+    expect(NBaseInteger('-😅😁😄😂😆', 8, emojiCharset).toString()).toBe('-😅😁😄😂😆');
+  });
+
+  it('should throw on charset shorter than base', () => {
+    expect(() => NBaseInteger(5, 10, 'abc')).toThrow();
+  });
+
+  it('should throw on charset with duplicate chars', () => {
+    expect(() => NBaseInteger(5, 3, 'aab')).toThrow();
+  });
+
+  it('should throw on invalid input types', () => {
+    // @ts-expect-error
+    expect(() => NBaseInteger({}, 10)).toThrow();
+    // @ts-expect-error
+    expect(() => NBaseInteger([], 10)).toThrow();
+    // @ts-expect-error
+    expect(() => NBaseInteger(null, 10)).toThrow();
+    // @ts-expect-error
+    expect(() => NBaseInteger(undefined, 10)).toThrow();
+  });
+
+  it('should throw if base and charset mismatch', () => {
+    expect(() => NBaseInteger(5, 5, 'abc')).toThrow();
+    expect(() => NBaseInteger(5, 4, 'abca')).toThrow();
+  });
+
+  it('should support leading zeros in string', () => {
+    expect(NBaseInteger('000123', 10).toString()).toBe('123');
+    expect(NBaseInteger('-000123', 10).toString()).toBe('-123');
+  });
+
+  it('should support all printable ASCII as charset', () => {
+    const charset = Array.from({ length: 94 }, (_, i) => String.fromCharCode(i + 33)).join('');
+    expect(NBaseInteger(93, 93, charset.replace('-', '')).toString()).toMatch(/./);
+    expect(() => NBaseInteger(1, 5, charset).toString()).toThrow();
   });
 });

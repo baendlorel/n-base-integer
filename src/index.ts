@@ -10,7 +10,7 @@ export const NBaseInteger = new Proxy(NBI, {
    * Create an `NBaseInteger` with default charsets
    * - default charsets is '0-9A-Za-z'
    * @param n 10-number
-   * @param base Default is 10. `base` must >= 2 and be an integer.
+   * @param base Default is 10. `base` must be an integer that >= 2
    */
   (n: number, base?: number): NBI;
 
@@ -18,7 +18,7 @@ export const NBaseInteger = new Proxy(NBI, {
    * Create an `NBaseInteger` with default charsets
    * - default charsets is '0-9A-Za-z'
    * @param n 10-number
-   * @param base Default is 10. `base` must >= 2 and be an integer.
+   * @param base Must be an integer that >= 2
    * @param charset Custom charset(length >= base), must not contain duplicate chars.
    */
   (n: number, base: number, charset: string): NBI;
@@ -27,7 +27,7 @@ export const NBaseInteger = new Proxy(NBI, {
    * Create an `NBaseInteger` with default charsets
    * - default charsets is '0-9A-Za-z'
    * @param n N-number string
-   * @param base Default is 10. `base` must >= 2 and be an integer.
+   * @param base Default is 10. `base` must be an integer that >= 2
    */
   (n: string, base?: number): NBI;
 
@@ -35,7 +35,7 @@ export const NBaseInteger = new Proxy(NBI, {
    * Create an `NBaseInteger` with default charsets
    * - default charsets is '0-9A-Za-z'
    * @param n N-number string
-   * @param base Default is 10. `base` must >= 2 and be an integer.
+   * @param base Must be an integer that >= 2
    * @param charset Custom charset(length >= base), must not contain duplicate chars.
    */
   (n: string, base: number, charset: string): NBI;
