@@ -19,13 +19,12 @@ describe('NBaseInteger', () => {
 
   it('should support custom charset', () => {
     const charset = '01'; // binary
-    const n = 13;
-    const nbi = NBaseInteger(n, 2, charset);
-    expect(nbi.toString()).toBe('1101');
+    const nbi = NBaseInteger(13, 2);
+    expect(nbi.toString(charset)).toBe('1101');
   });
 
   it('should throw on duplicate charset characters', () => {
-    expect(() => NBaseInteger(10, 4, '0012')).toThrow();
+    expect(() => NBaseInteger('10', 4, '0012')).toThrow();
   });
 
   it('should throw on invalid base', () => {
@@ -64,18 +63,18 @@ describe('NBaseInteger', () => {
 
   it('should support custom charset with special chars', () => {
     const charset = 'abc!@#';
-    expect(NBaseInteger(5, 6, charset).toString()).toMatch(/[abc!@#]+/);
+    expect(NBaseInteger(5, 6).toString(charset)).toMatch(/[abc!@#]+/);
     const emojiCharset = '😀😁😂🤣😃😄😅😆';
-    expect(NBaseInteger(25431, 8, emojiCharset).toString()).toBe('😅😁😄😂😆');
-    expect(NBaseInteger('-😅😁😄😂😆', 8, emojiCharset).toString()).toBe('-😅😁😄😂😆');
+    expect(NBaseInteger(25431, 8).toString(emojiCharset)).toBe('😅😁😄😂😆');
+    expect(NBaseInteger('-😅😁😄😂😆', 8, emojiCharset).toString(emojiCharset)).toBe('-😅😁😄😂😆');
   });
 
   it('should throw on charset shorter than base', () => {
-    expect(() => NBaseInteger(5, 10, 'abc')).toThrow();
+    expect(() => NBaseInteger('5', 10, 'abc')).toThrow();
   });
 
   it('should throw on charset with duplicate chars', () => {
-    expect(() => NBaseInteger(5, 3, 'aab')).toThrow();
+    expect(() => NBaseInteger('5', 3, 'aab')).toThrow();
   });
 
   it('should throw on invalid input types', () => {
@@ -90,8 +89,8 @@ describe('NBaseInteger', () => {
   });
 
   it('should throw if base and charset mismatch', () => {
-    expect(() => NBaseInteger(5, 5, 'abc')).toThrow();
-    expect(() => NBaseInteger(5, 4, 'abca')).toThrow();
+    expect(() => NBaseInteger('5', 5, 'abc')).toThrow();
+    expect(() => NBaseInteger('5', 4, 'abca')).toThrow();
   });
 
   it('should support leading zeros in string', () => {
@@ -100,8 +99,11 @@ describe('NBaseInteger', () => {
   });
 
   it('should support all printable ASCII as charset', () => {
-    const charset = Array.from({ length: 94 }, (_, i) => String.fromCharCode(i + 33)).join('');
-    expect(NBaseInteger(93, 93, charset.replace('-', '')).toString()).toMatch(/./);
-    expect(() => NBaseInteger(1, 5, charset).toString()).toThrow();
+    const charset = Array.from({ length: 94 }, (_, i) => String.fromCharCode(i + 33))
+      .join('')
+      .replace('-', '')
+      .replace(',', '');
+    expect(NBaseInteger(93, 93).toString(charset)).toMatch(/./);
+    expect(() => NBaseInteger(1, 5).toString(charset)).toThrow();
   });
 });

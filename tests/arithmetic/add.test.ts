@@ -21,10 +21,10 @@ describe('NBaseInteger.add', () => {
 
   it('should add in custom base (base-2)', () => {
     const charset = '01';
-    const a = NBaseInteger(5, 2, charset); // 101
-    const b = NBaseInteger(3, 2, charset); // 11
+    const a = NBaseInteger(5, 2); // 101
+    const b = NBaseInteger(3, 2); // 11
     const c = a.add(b);
-    expect(c.toString()).toBe('1000'); // 8 in binary
+    expect(c.toString(charset)).toBe('1000'); // 8 in binary
   });
 
   it('should throw if bases are different', () => {

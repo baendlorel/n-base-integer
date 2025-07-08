@@ -1221,7 +1221,7 @@ export class NBaseInteger {
   // todo 完成convertTo函数
   convertTo(base: number, charset?: string): NBaseInteger {
     expect(
-      isSafeInt(base) && 2 <= base && base <= MAX_BASE,
+      Number.isSafeInteger(base) && 2 <= base && base <= MAX_BASE,
       `'base' must be an integer from 2 to ${MAX_BASE}.`
     );
     if (charset !== undefined) {

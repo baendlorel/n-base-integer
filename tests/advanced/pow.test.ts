@@ -43,9 +43,9 @@ describe('NBaseInteger.pow', () => {
   });
 
   it('should work for custom charset', () => {
-    const a = NBaseInteger(2, 3, 'abc'); // base 3, '2'
-    const b = NBaseInteger(3, 3, 'abc'); // base 3, '10'
-    expect(a.pow(b).toString()).toBe('cc'); // 2^3=8, base3: '22'
+    const a = NBaseInteger(2, 3); // base 3, '2'
+    const b = NBaseInteger(3, 3); // base 3, '10'
+    expect(a.pow(b).toString('abc')).toBe('cc'); // 2^3=8, base3: '22'
   });
 
   it('should handle 0^0 as 1 (convention)', () => {
@@ -104,9 +104,9 @@ describe('NBaseInteger.pow', () => {
 
   it('should work for custom charset (base 5)', () => {
     const charset = '01234';
-    const a = NBaseInteger(4, 5, charset); // '4'
-    const b = NBaseInteger(6, 5, charset); // '6'
-    expect(a.pow(b).toString()).toBe('112341'); //
+    const a = NBaseInteger(4, 5); // '4'
+    const b = NBaseInteger(6, 5); // '6'
+    expect(a.pow(b).toString(charset)).toBe('112341'); //
   });
 
   it('should throw for negative exponent (again)', () => {
@@ -138,9 +138,9 @@ describe('NBaseInteger.pow', () => {
   });
 
   it('should support pow(number) for custom charset', () => {
-    const a = NBaseInteger(2, 3, 'abc');
-    expect(a.pow(3).toString()).toBe('cc');
-    expect(a.pow(0).toString()).toBe('b');
+    const a = NBaseInteger(2, 3);
+    expect(a.pow(3).toString('abc')).toBe('cc');
+    expect(a.pow(0).toString('abc')).toBe('b');
   });
 
   it('should throw for negative number exponent', () => {

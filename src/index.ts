@@ -47,6 +47,8 @@ export const NBaseInteger = new Proxy(NBI, {
   },
 }) as typeof NBI & {
   /**
+   * ! **BEWARE: NBaseInteger(10,2) is 10 but NBaseInteger('10',2) is 2**
+   *
    * Create an `NBaseInteger` with default charsets
    * - default charsets is '0-9A-Za-z'
    * @param n 10-number
@@ -55,6 +57,8 @@ export const NBaseInteger = new Proxy(NBI, {
   (n: number, base?: number): NBI;
 
   /**
+   * ! **BEWARE: NBaseInteger(10,2) is 10 but NBaseInteger('10',2) is 2**
+   *
    * Create an `NBaseInteger` with default charsets
    * - default charsets is '0-9A-Za-z'
    * @param n N-number string
@@ -63,6 +67,8 @@ export const NBaseInteger = new Proxy(NBI, {
   (nstr: string, base: number): NBI;
 
   /**
+   * ! **BEWARE: NBaseInteger(10,2,...) is 10 but NBaseInteger('10',2,...) is 2**
+   *
    * Create an `NBaseInteger` with default charsets
    * - default charsets is '0-9A-Za-z'
    * @param n N-number string
