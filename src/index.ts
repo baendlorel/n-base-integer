@@ -46,6 +46,7 @@ export const NBaseInteger = new Proxy(NBI, {
     }
   },
 }) as typeof NBI & {
+  // todo 为了规范创建，应该进制n为number，因为语义不同。如果要从10进制创建则用from函数
   /**
    * ! **BEWARE: NBaseInteger(10,2) is 10 but NBaseInteger('10',2) is 2**
    *

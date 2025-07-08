@@ -7,7 +7,7 @@ import alias from '@rollup/plugin-alias';
 import terser from '@rollup/plugin-terser';
 import babel from '@rollup/plugin-babel';
 
-import constFold from './plugins/const-fold.js';
+import { createConstFoldTransformers } from './plugins/const-fold.js';
 
 const tsconfigFile = './tsconfig.build.json';
 
@@ -34,13 +34,7 @@ export default [
       commonjs(),
       typescript({
         tsconfig: tsconfigFile,
-        transformers: {
-          before: [
-            // 使用自定义常量折叠转换器
-            // 这里可以根据需要传入常量对象
-            constFold(['CLASS_NAME']),
-          ],
-        },
+        transformers: createConstFoldTransformers(['CLASS_NAME', 'DEF0', 'DEF1', 'DEF2']),
       }),
       void babel({
         babelHelpers: 'bundled',
