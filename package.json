@@ -33,7 +33,7 @@
 	"scripts": {
 		"test": "clear & jest",
 		"lint": "eslint .",
-		"plugin": "tsc  -p tsconfig.plugin.json",
+		"plugin": "tsc -p tsconfig.plugin.json",
 		"build": "rm -rf dist && pnpm plugin && rollup -c"
 	},
 	"peerDependencies": {

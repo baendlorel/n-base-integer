@@ -7,6 +7,10 @@ import alias from '@rollup/plugin-alias';
 import terser from '@rollup/plugin-terser';
 import babel from '@rollup/plugin-babel';
 
+import constFold from './plugins/const-fold.js';
+
+const tsconfigFile = './tsconfig.build.json';
+
 /**
  * @type {import('rollup').RollupOptions}
  */
@@ -29,9 +33,16 @@ export default [
       resolve(),
       commonjs(),
       typescript({
-        tsconfig: './tsconfig.build.json',
+        tsconfig: tsconfigFile,
+        transformers: {
+          before: [
+            // 使用自定义常量折叠转换器
+            // 这里可以根据需要传入常量对象
+            constFold(['CLASS_NAME']),
+          ],
+        },
       }),
-      babel({
+      void babel({
         babelHelpers: 'bundled',
         extensions: ['.ts', '.tsx', '.js', '.jsx'],
         presets: [['@babel/preset-env', { targets: { node: '14' } }]],
@@ -44,7 +55,7 @@ export default [
           ],
         ],
       }),
-      terser({
+      void terser({
         format: {
           comments: false, // 移除所有注释
         },
