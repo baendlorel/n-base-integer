@@ -1,7 +1,7 @@
 import { MAX_BASE, CLASS_NAME, Flag } from './consts';
 import { chs, unshift0 } from './common';
 import { expect, expectPrivateCalling } from './expect';
-import { safeCharset, safeInt } from './safe';
+import { safeBase, safeCharset, safeInt } from './safe';
 
 interface NBaseIntegerDivResult {
   quotient: NBaseInteger;
@@ -33,33 +33,7 @@ const enum Ordering {
  *
  * @returns A number array. Numbers like '00124' will be purged to '124'
  */
-const parse = (n: string, base: number, charset: readonly string[] | null): number[] => {
-  // Use default charset when we got null
-  if (charset === null) {
-    charset = chs.default;
-
-    // If default charset is not enough, parse it as numbers separated by comma
-    if (charset.length < base) {
-      if (!/^[0-9]+(?:,[0-9]+)*$/.test(n)) {
-        throw new TypeError(
-          "Parse failed. Expected 'n' to be a string of numbers separated by commas."
-        );
-      }
-
-      const arr = n.split(',');
-      const digits: number[] = [];
-      for (let i = arr.length - 1; i >= 0; i++) {
-        digits[i] = parseInt(arr[i], 10);
-        if (digits[i] >= base) {
-          throw new RangeError(
-            `Every digit must < ${base}, got ${digits[i]} in position ${arr.length - 1 - i}.`
-          );
-        }
-      }
-      return purgeZeros(digits);
-    }
-  }
-
+const parse = (n: string, base: number, charset: readonly string[]): number[] => {
   const map: Record<string, number> = {};
   for (let i = 0; i < base; i++) {
     map[charset[i]] = i;
@@ -426,7 +400,29 @@ export class NBaseInteger {
    * @returns
    */
   static from(n: number, base: number): NBaseInteger {
-    return new NBaseInteger(Flag.PRIVATE, n, base);
+    return new NBaseInteger(Flag.PRIVATE, safeInt(n), safeBase(base));
+  }
+
+  /**
+   * Create an NBaseInteger with number digits
+   * - fromDigits([1,2,3], 10) -> 123 in base 10
+   * - fromDigits([1,0], 2) -> 2 in base 10
+   * @param n digits
+   * @param base target base
+   * @returns
+   */
+  static fromDigits(n: number[], base: number, negative: boolean = false): NBaseInteger {
+    const a = new NBaseInteger(Flag.PRIVATE, 1, safeBase(base));
+    a.#negative = negative;
+    const digits: number[] = [];
+    for (let i = n.length - 1; i >= 0; i--) {
+      if (n[i] >= base) {
+        throw new RangeError(`Digit ${n[i]} at position ${n.length - 1 - i} is >= ${base}.`);
+      }
+      digits.push(n[i]);
+    }
+
+    return a;
   }
 
   static [Flag.FACTORY](priv: symbol) {
