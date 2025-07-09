@@ -416,7 +416,6 @@ export class NBaseInteger {
     expect(typeof negative === 'boolean', `'negative' must be a bool or omitted.`);
 
     const a = new NBaseInteger(Flag.PRIVATE, 1, safeBase(base));
-    a.#negative = Boolean(negative);
     const digits: number[] = [];
     for (let i = n.length - 1; i >= 0; i--) {
       const digit = safeInt(n[i]);
@@ -424,6 +423,8 @@ export class NBaseInteger {
       digits.push(digit);
     }
 
+    a.#negative = Boolean(negative);
+    a.#digits = purgeZeros(digits);
     return a;
   }
 
@@ -492,10 +493,10 @@ export class NBaseInteger {
   #digits: number[];
 
   /**
-   * `this` >= 0 -> positive
-   * `this` <  0 -> negative
+   * >= 0 -> positive
+   * <  0 -> negative
    */
-  #negative = false;
+  #negative: boolean = false;
 
   /**
    * The base of this number
