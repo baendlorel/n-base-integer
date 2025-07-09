@@ -101,4 +101,11 @@ describe('NBaseInteger hardcore add/mul', () => {
     expect(a.mul(b).toString()).toBe('12345');
     expect(b.mul(a).toString()).toBe('12345');
   });
+
+  it('mul: large number', () => {
+    const n = '999999999999999999999999999999';
+    const huge = NBaseInteger(n);
+    const result = huge.mul(huge); // Still works perfectly
+    expect(result.toString()).toMatch(new RegExp(`^[9]{${n.length - 1}}8[0]{${n.length - 1}}1$`));
+  });
 });

@@ -1276,18 +1276,30 @@ export class NBaseInteger {
     return result;
   }
 
+  /**
+   * Convert this number to binary
+   */
   toBinary() {
     return this.convertTo(2);
   }
 
+  /**
+   * Convert this number to octal
+   */
   toOctal() {
     return this.convertTo(8);
   }
 
+  /**
+   * Convert this number to decimal
+   */
   toDecimal() {
     return this.convertTo(10);
   }
 
+  /**
+   * Convert this number to hexadecimal
+   */
   toHex() {
     return this.convertTo(16);
   }
