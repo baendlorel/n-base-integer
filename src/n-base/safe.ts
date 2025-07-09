@@ -1,3 +1,5 @@
+import { MAX_BASE } from './consts';
+
 const charsetCache = new Map<string, string[]>();
 
 const hasControlCharacters = (charset: string): boolean => /\p{C}/u.test(charset);
@@ -46,11 +48,16 @@ export const safeCharset = (charset: string, base: number) => {
   return arr;
 };
 
-export const isSafeInt = Number.isSafeInteger;
-
 export const safeInt = (n: number) => {
-  if (!isSafeInt(n)) {
+  if (!Number.isSafeInteger(n)) {
     throw new TypeError(`The method is not called with a safe integer, got ${n}.`);
   }
   return n;
+};
+
+export const safeBase = (base: number) => {
+  if (Number.isSafeInteger(base) && base > 1) {
+    throw new TypeError(`'base' must be an integer from 2 to ${MAX_BASE}.`);
+  }
+  return base;
 };

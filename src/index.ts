@@ -1,41 +1,41 @@
 import { CLASS_NAME, Flag } from './n-base/consts';
 import { charsets } from './n-base/common';
-import { expect } from './n-base/expect';
+import { safeBase, safeCharset } from './n-base/safe';
 import { NBaseInteger as NBI } from './n-base/integer';
-import { isSafeInt, safeCharset } from './n-base/safe';
 
 // 现在 TypeScript 可以正确推断 nsbc 的类型
-const nsbc = NBI[Flag.FACTORY](Flag.PRIVATE);
+const create = NBI[Flag.FACTORY](Flag.PRIVATE);
 
-const DEF0 = `${CLASS_NAME}(...args)`;
-const DEF1 = `${CLASS_NAME}(n: string)`;
-const DEF2 = `${CLASS_NAME}(n: string, base: number)`;
-const DEF3 = `${CLASS_NAME}(n: string, base: number, charset: string)`;
+const DEF = `${CLASS_NAME}(n: string, base?: number, charset?: string)`;
+
+const safeN = (n: string) => {
+  if (typeof n !== 'string') {
+    throw new TypeError(`${DEF} requires 'n' to be a non-empty string excludes '-'.`);
+  }
+  n = n.trim();
+  if (n.length === 0 || n === '-') {
+    throw new TypeError(`${DEF} requires 'n' to be non-empty and not '-'.`);
+  }
+
+  return n;
+};
 
 /**
  * Factory for NBaseInteger. Allows function-style creation of NBaseInteger instances.
  */
 export const NBaseInteger = new Proxy(NBI, {
   apply(_target, _thisArg, args) {
-    const [n, base, charset] = args;
     switch (args.length) {
       case 0:
-        throw new TypeError(`${DEF0} requires at least one argument.`);
+        throw new TypeError(`${DEF} requires at least one argument.`);
       case 1:
-        expect(typeof n === 'string', `${DEF1} requires 'n' to be a string.`);
-        return nsbc(n.trim(), 10, charsets.default);
+        return create(safeN(args[0]), 10, charsets.default);
       case 2:
-        expect(isSafeInt(base) && base > 1, `${DEF2} requires 'base' to be an integer.`);
-        if (typeof n === 'string' && n.length > 0) {
-          return nsbc(n.trim(), base, charsets.default);
-        }
-        throw new TypeError(`${DEF2} requires 'n' to be a string.`);
+        return create(safeN(args[0]), safeBase(args[1]), charsets.default);
       case 3:
-        expect(typeof n === 'string', `${DEF3} requires 'n' to be a string.`);
-        expect(isSafeInt(base), `${DEF3} requires 'base' to be an integer.`);
-        return nsbc(n.trim(), base, safeCharset(charset, base));
+        return create(safeN(args[0]), safeBase(args[1]), safeCharset(args[2], args[1]));
       default:
-        throw new TypeError(`Too many arguments for ${DEF0}. Expect 1~3, got ${args.length} `);
+        throw new TypeError(`Too many arguments for ${DEF}. Expect 1~3, got ${args.length} `);
     }
   },
 }) as typeof NBI & {

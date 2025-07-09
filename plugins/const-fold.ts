@@ -29,7 +29,6 @@ const createIsTargetConst = (options?: Partial<ConstFoldOptions>) => {
  * 工厂函数，利用 program 全局收集常量，并返回 CustomTransformers
  * @param constNames 需要折叠的常量名数组
  */
-// todo 入参不如改为constname需要满足的正则表达式
 export function createConstFoldTransformers(options?: Partial<ConstFoldOptions>) {
   const isTargetConst = createIsTargetConst(options);
 
