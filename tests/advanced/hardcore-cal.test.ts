@@ -1,5 +1,6 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect, xit } from '@jest/globals';
 import { NBaseInteger } from '@/index';
+// import { powMontgomeryLadder } from '@/n-base/large-handler';
 
 describe('NBaseInteger hardcore add/mul', () => {
   const customCharset = 'abc'; // base 3
@@ -108,4 +109,17 @@ describe('NBaseInteger hardcore add/mul', () => {
     const result = huge.mul(huge); // Still works perfectly
     expect(result.toString()).toMatch(new RegExp(`^[9]{${n.length - 1}}8[0]{${n.length - 1}}1$`));
   });
+
+  it('mul: large number power', () => {
+    const n = '900';
+    const huge = NBaseInteger(n);
+    const result = huge.pow(huge);
+    console.log(result.toString());
+    // expect(result.toString()).toMatch(new RegExp(`^[9]{${n.length - 1}}8[0]{${n.length - 1}}1$`));
+  });
+
+  // it('powMontgomeryLadder', () => {
+  //   const a = powMontgomeryLadder([9, 9, 9, 9], [9, 9, 9, 9], 10);
+  //   console.log(a.reverse().join('')); // Should print a very large number
+  // });
 });

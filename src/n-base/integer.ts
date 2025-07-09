@@ -333,12 +333,11 @@ const binarySearchQuotient = (
 // #endregion
 
 const pow = (a: readonly number[], exponent: number[], base: number): number[] => {
-  const product: number[] = [];
   // handle some easy cases
   if (exponent.length === 1) {
     switch (exponent[0]) {
       case 0:
-        return product;
+        return [1];
       case 1:
         return a.slice();
       case 2:
