@@ -1,5 +1,5 @@
 import { CLASS_NAME, Flag } from './n-base/consts';
-import { charsets } from './n-base/common';
+import { chs } from './n-base/common';
 import { safeBase, safeCharset } from './n-base/safe';
 import { NBaseInteger as NBI } from './n-base/integer';
 
@@ -29,9 +29,9 @@ export const NBaseInteger = new Proxy(NBI, {
       case 0:
         throw new TypeError(`${DEF} requires at least one argument.`);
       case 1:
-        return create(safeN(args[0]), 10, null);
+        return create(safeN(args[0]), 10, chs.safe(10));
       case 2:
-        return create(safeN(args[0]), safeBase(args[1]), null);
+        return create(safeN(args[0]), safeBase(args[1]), chs.safe(args[1]));
       case 3:
         return create(safeN(args[0]), safeBase(args[1]), safeCharset(args[2], args[1]));
       default:

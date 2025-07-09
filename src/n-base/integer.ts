@@ -1,5 +1,5 @@
 import { MAX_BASE, CLASS_NAME, Flag } from './consts';
-import { charsets, unshift0 } from './common';
+import { chs, unshift0 } from './common';
 import { expect, expectPrivateCalling } from './expect';
 import { safeCharset, safeInt } from './safe';
 
@@ -27,15 +27,16 @@ const enum Ordering {
 /**
  * Checking if `n` only have chars in `charset`
  *
- * ! ONLY use when `base` and `charset` is valid
- * - `base` <= `charset.length`
+ * ! ONLY use when parameters satisfies:
+ * - `base` === `charset.length`
  * - `charset` has no duplicate chars
- * - Numbers like '00124' will be purged to '124'
+ *
+ * @returns A number array. Numbers like '00124' will be purged to '124'
  */
 const parse = (n: string, base: number, charset: readonly string[] | null): number[] => {
   // Use default charset when we got null
   if (charset === null) {
-    charset = charsets.default;
+    charset = chs.default;
 
     // If default charset is not enough, parse it as numbers separated by comma
     if (charset.length < base) {
@@ -430,9 +431,10 @@ export class NBaseInteger {
 
   static [Flag.FACTORY](priv: symbol) {
     expectPrivateCalling(priv);
-    return (s: string, base: number, ch: readonly string[] | null): NBaseInteger => {
+    return (s: string, base: number, charset: readonly string[]): NBaseInteger => {
       const a = new NBaseInteger(Flag.PRIVATE, 0, base);
-      a.#digits = parse(s.replace('-', ''), base, ch);
+      const justEnoughCharset = charset.slice(0, base);
+      a.#digits = parse(s.replace('-', ''), base, justEnoughCharset);
       if (!a.isZero && s[0] === '-') {
         a.#negative = true;
       }
@@ -444,7 +446,7 @@ export class NBaseInteger {
    * Get the default charset for NBaseInteger.
    */
   static get charset() {
-    return charsets.default.join('');
+    return chs.default.join('');
   }
 
   /**
@@ -456,7 +458,7 @@ export class NBaseInteger {
     if (charsetArr.length > MAX_BASE) {
       throw new RangeError(`Default charset length should less than ${MAX_BASE}.`);
     }
-    charsets.setDefault(charsetArr);
+    chs.setDefault(charsetArr);
   }
 
   /**
@@ -1060,7 +1062,6 @@ export class NBaseInteger {
         break;
       default:
         throw new TypeError(`Invalid sign: ${sgn}. Expected -1, 0 or 1.`);
-        break;
     }
     return this;
   }
@@ -1304,7 +1305,7 @@ export class NBaseInteger {
     } else if (typeof charset === 'string') {
       charsetArr = safeCharset(charset, this.#base);
     } else if (charset === undefined) {
-      charsetArr = charsets.default;
+      charsetArr = chs.default;
       if (this.#base > charsetArr.length) {
         return this.#digits.toReversed().join(',');
       }

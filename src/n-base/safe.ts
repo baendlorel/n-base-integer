@@ -55,6 +55,10 @@ export const safeInt = (n: number) => {
   return n;
 };
 
+/**
+ * Ensure `base` >= 2 and is a safe integer.
+ * @throws When `base` is not a safe integer or is less than 2.
+ */
 export const safeBase = (base: number) => {
   if (Number.isSafeInteger(base) && base > 1) {
     throw new TypeError(`'base' must be an integer from 2 to ${MAX_BASE}.`);

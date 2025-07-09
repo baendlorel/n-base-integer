@@ -63,7 +63,10 @@ let defaultCharset = Object.freeze([
   'z',
 ]);
 
-export const charsets = {
+/**
+ * Default charset manager
+ */
+export const chs = {
   get default() {
     return defaultCharset;
   },
@@ -73,6 +76,19 @@ export const charsets = {
    */
   setDefault(charsetArr: string[]) {
     defaultCharset = Object.freeze(charsetArr.slice());
+  },
+
+  /**
+   * Chop the default charset, make its length === `base`.
+   * @throws When `base` > default length
+   */
+  safe(base: number) {
+    if (base > defaultCharset.length) {
+      throw new RangeError(
+        `Base ${base} exceeds the length of the default charset (${defaultCharset.length}).`
+      );
+    }
+    return defaultCharset.slice(0, base);
   },
 };
 
