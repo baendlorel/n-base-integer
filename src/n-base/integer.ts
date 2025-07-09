@@ -472,7 +472,7 @@ export class NBaseInteger {
   /**
    * Get the default charset for NBaseInteger.
    */
-  static get charset() {
+  static get defaultCharset() {
     return chs.default.join('');
   }
 
@@ -480,7 +480,7 @@ export class NBaseInteger {
    * Set the default charset for NBaseInteger.
    * @param charset Must exclude dash, space, duplicate characters and control characters.
    */
-  static set charset(charset: string) {
+  static setDefaultCharset(charset: string) {
     const charsetArr = safeCharset(charset, MAX_BASE);
     if (charsetArr.length > MAX_BASE) {
       throw new RangeError(`Default charset length should less than ${MAX_BASE}.`);
@@ -1241,10 +1241,17 @@ export class NBaseInteger {
     return this;
   }
 
-  // todo 完成convertTo函数
+  /**
+   * Convert current base to another base.
+   * - if `base` is the same as current base, return a clone.
+   * @returns a new instance with the new base
+   */
   convertTo(base: number): NBaseInteger {
+    if (base === this.#base) {
+      return this.clone();
+    }
     base = safeBase(base);
-    const ab = new NBaseInteger(Flag.PRIVATE, 0, this.#base);
+    const ab = new NBaseInteger(Flag.PRIVATE, base, this.#base);
 
     const reversedRemainder: number[] = [];
     // ignore negative sign
@@ -1252,19 +1259,37 @@ export class NBaseInteger {
     let cur = this.#digits;
 
     do {
-      if (isNaN(cur[0])) {
-        throw 1;
-      }
-      console.log('cur', cur);
       const qr = divide(cur, abd, this.#base);
       cur = qr.quotient;
-      reversedRemainder.push(qr.remainder[0]);
+      const r = qr.remainder;
+      // remainder here must be a number under target base, not this.#base
+      let digit = qr.remainder[0];
+      for (let i = 1; i < r.length; i++) {
+        digit += r[i] * Math.pow(this.#base, i);
+      }
+      reversedRemainder.push(digit);
     } while (!isZero(cur));
 
     const result = new NBaseInteger(Flag.PRIVATE, this.sgn, base);
     result.#digits = reversedRemainder;
 
     return result;
+  }
+
+  toBinary() {
+    return this.convertTo(2);
+  }
+
+  toOctal() {
+    return this.convertTo(8);
+  }
+
+  toDecimal() {
+    return this.convertTo(10);
+  }
+
+  toHex() {
+    return this.convertTo(16);
   }
 
   /**
@@ -1280,14 +1305,15 @@ export class NBaseInteger {
     switch (cmp(this.#digits, maxSafeInt)) {
       case Ordering.Greater:
         throw new RangeError(
-          `The number is too large(> Number.MAX_SAFE_INTEGER). Please use toBigInt() instead.`
+          `This number is too large(> Number.MAX_SAFE_INTEGER). Please use toBigInt() instead.`
         );
       case Ordering.Equal:
         return Number.MAX_SAFE_INTEGER;
       case Ordering.Less: {
-        let sum = 0;
-        for (let i = 0; i < this.#digits.length; i++) {
-          sum += this.#digits[i] * i ** this.#base;
+        let sum = this.#digits[0];
+        for (let i = 1; i < this.#digits.length; i++) {
+          // & Math.pow is faster than a ** b while <1000 times and >100000 times
+          sum += this.#digits[i] * Math.pow(this.#base, i);
         }
         return sum;
       }
@@ -1305,13 +1331,13 @@ export class NBaseInteger {
     let sum = 0n;
     const base = BigInt(this.#base);
     for (let i = 0; i < this.#digits.length; i++) {
-      sum += BigInt(this.#digits[i]) * BigInt(i) ** base;
+      // & There is no Math.pow for bigint, and it is faster than `fastExponent` write by myself
+      sum += BigInt(this.#digits[i]) * base ** BigInt(i);
     }
     return sum;
   }
 
   clone() {
-    // Here, this.sgn gives the value of #negative
     const clone = new NBaseInteger(Flag.PRIVATE, this.sgn, this.#base);
     clone.#digits = this.#digits.slice();
     return clone;
@@ -1319,18 +1345,40 @@ export class NBaseInteger {
 
   /**
    * Returns a string representation of this number in the specified base.
-   * - If `charset` is not given, it uses the default charset.
-   * - If `charset` is null, just return the digits separated with comma.
-   * - If `charset` is a string, use it to stringify every digit after check.
+   * - `charset` default value is '0...9A...Za...z'(can be set via `NBaseInteger.setDefaultCharset()`).
+   *   - note that `charset` can be omitted but **not explicitly be `undefined`**
+   * - When `charset` is `null`, just return the digits separated with comma.
+   * - When `charset` is `string`, use it to stringify every digit after check.
    * @param charset The charset to use for conversion.
    */
-  toString(charset?: string | null): string {
+  toString(): string;
+
+  /**
+   * Returns a string representation of this number in the specified base.
+   * - `charset` default value is '0...9A...Za...z'(can be set via `NBaseInteger.setDefaultCharset()`).
+   *   - note that `charset` can be omitted but **not explicitly be `undefined`**
+   * - When `charset` is `null`, just return the digits separated with comma.
+   * - When `charset` is `string`, use it to stringify every digit after check.
+   * @param charset The charset to use for conversion.
+   */
+  toString(charset: null): string;
+
+  /**
+   * Returns a string representation of this number in the specified base.
+   * - `charset` default value is '0...9A...Za...z'(can be set via `NBaseInteger.setDefaultCharset()`).
+   *   - note that `charset` can be omitted but **not explicitly be `undefined`**
+   * - When `charset` is `null`, just return the digits separated with comma.
+   * - When `charset` is `string`, use it to stringify every digit after check.
+   * @param charset The charset to use for conversion.
+   */
+  toString(charset: string): string;
+  toString(charset: string | null | symbol = Flag.OMITTED): string {
     let charsetArr;
     if (charset === null) {
       return this.#digits.toReversed().join(',');
     } else if (typeof charset === 'string') {
       charsetArr = safeCharset(charset, this.#base);
-    } else if (charset === undefined) {
+    } else if (charset === Flag.OMITTED) {
       charsetArr = chs.default;
       if (this.#base > charsetArr.length) {
         return this.#digits.toReversed().join(',');

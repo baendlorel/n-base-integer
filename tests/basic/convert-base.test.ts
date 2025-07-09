@@ -2,7 +2,7 @@ import { describe, it, expect } from '@jest/globals';
 import { NBaseInteger } from '@/index';
 
 describe('Base Conversion Tests', () => {
-  describe('toBase() method', () => {
+  describe('convertTo() method', () => {
     it('convert from base 10 to base 2', () => {
       const num = NBaseInteger('123', 10);
       const binary = num.convertTo(2);
@@ -83,12 +83,14 @@ describe('Base Conversion Tests', () => {
     });
 
     it('convert with custom high bases', () => {
-      const num = NBaseInteger('HELLO', 32, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ012345');
+      // const c = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ012345';
+      const num = NBaseInteger('HELLO', 32, c);
       const converted = num.convertTo(10);
 
       // Convert back to verify
       const backTo32 = converted.convertTo(32);
-      expect(backTo32.toString('ABCDEFGHIJKLMNOPQRSTUVWXYZ012345')).toBe('HELLO');
+      expect(backTo32.toString(c)).toBe('HELLO');
     });
 
     it('convert throws error for invalid base', () => {
@@ -249,7 +251,7 @@ describe('Base Conversion Tests', () => {
   describe('Symbol.toPrimitive', () => {
     it('number hint returns decimal value', () => {
       const binary = NBaseInteger('1111011', 2);
-      expect(Number(binary)).toBe(123);
+      expect(binary.toNumber()).toBe(123);
       expect(+binary).toBe(123);
     });
 

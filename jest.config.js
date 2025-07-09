@@ -7,4 +7,6 @@ export default {
   collectCoverageFrom: ['src/**/*.ts'],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'html', 'lcov'],
+  // 不显示跳过的测试
+  verbose: false,
 };

@@ -10,6 +10,8 @@ export const Flag = {
 
   PRIVATE: Symbol('private'),
 
+  OMITTED: Symbol('omitted'),
+
   // TS can still tell the type of `NBaseInteger[FACTORY]`
   FACTORY: Symbol('factory'),
 } as const;
