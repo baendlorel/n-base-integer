@@ -13,13 +13,15 @@ export const safeCharset = (charset: string, base: number) => {
   if (typeof charset !== 'string') {
     throw new TypeError(`'charset' must be a string.`);
   }
+
   const cache = charsetCache.get(charset);
   if (cache) {
-    if (cache.length > base) {
-      throw new RangeError(`charset.length(${cache.length}) must <= base(${base}).`);
+    if (cache.length < base) {
+      throw new RangeError(`charset.length must >= base, but ${cache.length} < ${base}.`);
     }
     return cache.slice(0, base);
   }
+
   const arr = Array.from(charset);
   const deduped = new Set(arr);
   if (arr.length !== deduped.size) {
@@ -34,6 +36,7 @@ export const safeCharset = (charset: string, base: number) => {
   if (deduped.has('-')) {
     throw new TypeError(`'charset' must exclude '-'. Might be confused with negative sign.`);
   }
+
   // & Commas now only appear when calling `toString(null)`.
   // & Since we already have charsets here, it shall not be confusing.
   // if (deduped.has(',')) {

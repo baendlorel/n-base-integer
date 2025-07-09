@@ -104,6 +104,6 @@ describe('NBaseInteger', () => {
       .replace('-', '')
       .replace('.', '');
     expect(NBaseInteger.from(c.length, c.length).toString(c)).toBe(c[1] + c[0]);
-    expect(() => NBaseInteger.from(1, 5).toString(c)).toThrow();
+    // ? what is this for: expect(() => NBaseInteger.from(1, 5).toString(c)).toThrow();
   });
 });

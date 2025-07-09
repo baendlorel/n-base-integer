@@ -394,7 +394,7 @@ const purgeZeros = (a: number[]): number[] => {
 export class NBaseInteger {
   // # Factories
   /**
-   * Create an NBaseInteger with 10-base number
+   * Create an `NBaseInteger` with 10-base number
    * @param n 10-base number
    * @param base target base
    * @returns
@@ -404,7 +404,7 @@ export class NBaseInteger {
   }
 
   /**
-   * Create an NBaseInteger with number digits
+   * Create an `NBaseInteger` with number digits
    * - fromDigits([1,2,3], 10) -> 123 in base 10
    * - fromDigits([1,0], 2) -> 2 in base 10
    * @param n digits

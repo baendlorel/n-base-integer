@@ -144,15 +144,12 @@ describe('NBaseInteger Creation Tests', () => {
         expect(() => NBaseInteger('123', 4, '01 2')).toThrow("'charset' must exclude ' '.");
       });
 
+      // ? 为什么单独运行没有问题，一起运行通不过？
+      // * 原来是因为缓存charset中的length<base判定，不等号方向写反了
       it('should throw error when charset is shorter than base', () => {
-        expect(() => {
-          try {
-            NBaseInteger('123', 5, '0123');
-          } catch (error) {
-            console.log('throws', error);
-            throw error;
-          }
-        }).toThrow('charset.length(4) must >= base(5).');
+        expect(() => NBaseInteger('123', 5, '0123')).toThrow(
+          'charset.length must >= base, but 4 < 5.'
+        );
       });
     });
   });
