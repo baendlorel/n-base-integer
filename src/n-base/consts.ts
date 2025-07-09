@@ -17,10 +17,9 @@ export const enum Ordering {
 
 export const Flag = {
   CLONE: Symbol('clone'),
-  PRIVATE: Symbol('private'),
-};
 
-export const Factory = {
-  N_BASE: Symbol('n,base'),
-  NSTR_BASE_CHRS: Symbol('nstr,base,charset'),
-};
+  PRIVATE: Symbol('private'),
+
+  // TS can still tell the type of `NBaseInteger[FACTORY]`
+  FACTORY: Symbol('factory'),
+} as const;

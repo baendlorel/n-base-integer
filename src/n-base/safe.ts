@@ -1,5 +1,7 @@
 const charsetCache = new Map<string, string[]>();
 
+const hasControlCharacters = (charset: string): boolean => /\p{C}/u.test(charset);
+
 /**
  * Support emojis
  */
@@ -14,13 +16,22 @@ export const safeCharset = (charset: string, base: number) => {
   const arr = Array.from(charset);
   const deduped = new Set(arr);
   if (arr.length !== deduped.size) {
-    throw new RangeError(`'charset' must not contain duplicate chars.`);
+    throw new TypeError(`'charset' must exclude duplicate chars.`);
+  }
+  if (hasControlCharacters(charset)) {
+    throw new TypeError(`'charset' must exclude control characters.`);
+  }
+  if (deduped.has('.')) {
+    throw new TypeError(`'charset' must exclude '.'. Might be confused with demical point.`);
   }
   if (deduped.has('-')) {
-    throw new TypeError(`'charset' must not contain '-'. It is reserved to be the negative sign.`);
+    throw new TypeError(`'charset' must exclude '-'. Might be confused with negative sign.`);
   }
   if (deduped.has(',')) {
-    throw new TypeError(`'charset' must not contain ','. It is reserved to be the seperator.`);
+    throw new TypeError(`'charset' must exclude ','. It is reserved to be the seperator.`);
+  }
+  if (deduped.has(' ')) {
+    throw new TypeError(`'charset' must exclude ' '.`);
   }
   if (arr.length < 2) {
     throw new RangeError(`'charset' must contain at least 2 chars.`);

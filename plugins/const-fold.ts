@@ -1,11 +1,38 @@
+import { isRegExp } from 'node:util/types';
 import ts from 'typescript';
+
+interface ConstFoldOptions {
+  names: string[];
+  matches: RegExp;
+}
+
+const createIsTargetConst = (options?: Partial<ConstFoldOptions>) => {
+  const validNames = Array.isArray(options?.names);
+  const validMatches = isRegExp(options?.matches);
+  if (validNames && validMatches) {
+    const nameSet = new Set(options.names as string[]);
+    const reg = options.matches as RegExp;
+    return (name: string) => nameSet.has(name) || reg.test(name);
+  }
+  if (!validNames && validMatches) {
+    const reg = options.matches as RegExp;
+    return (name: string) => reg.test(name);
+  }
+  if (validNames && !validMatches) {
+    const nameSet = new Set(options.names as string[]);
+    return (name: string) => nameSet.has(name);
+  }
+  return (_name: string) => true;
+};
 
 /**
  * 工厂函数，利用 program 全局收集常量，并返回 CustomTransformers
  * @param constNames 需要折叠的常量名数组
  */
 // todo 入参不如改为constname需要满足的正则表达式
-export function createConstFoldTransformers(constNames: string[]) {
+export function createConstFoldTransformers(options?: Partial<ConstFoldOptions>) {
+  const isTargetConst = createIsTargetConst(options);
+
   return (program: ts.Program) => {
     // 1. 全局收集常量
     const constValues: Record<string, string | number | boolean | null> = {};
@@ -14,11 +41,7 @@ export function createConstFoldTransformers(constNames: string[]) {
       ts.forEachChild(sf, function collect(node: ts.Node) {
         if (ts.isVariableStatement(node) && node.declarationList.flags & ts.NodeFlags.Const) {
           for (const decl of node.declarationList.declarations) {
-            if (
-              ts.isIdentifier(decl.name) &&
-              constNames.includes(decl.name.text) &&
-              decl.initializer
-            ) {
+            if (ts.isIdentifier(decl.name) && isTargetConst(decl.name.text) && decl.initializer) {
               if (ts.isStringLiteral(decl.initializer)) {
                 constValues[decl.name.text] = decl.initializer.text;
               } else if (ts.isNumericLiteral(decl.initializer)) {
@@ -41,13 +64,13 @@ export function createConstFoldTransformers(constNames: string[]) {
 
     // 2. 返回 transformer
     return {
-      before: [constFoldTransformer(constNames, constValues)],
+      before: [constFoldTransformer(isTargetConst, constValues)],
     };
   };
 }
 
 function constFoldTransformer(
-  consts: string[],
+  isTargetConst: (name: string) => boolean,
   constValues: Record<string, any>
 ): ts.TransformerFactory<ts.SourceFile> {
   return (context) => {
@@ -87,7 +110,7 @@ function constFoldTransformer(
       }
       if (
         ts.isIdentifier(node) &&
-        consts.includes(node.text) &&
+        isTargetConst(node.text) &&
         !isDeclarationName(node) &&
         !isPropertyKey(node)
       ) {

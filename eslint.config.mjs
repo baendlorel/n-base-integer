@@ -14,7 +14,8 @@ export default tseslint.config(
   {
     ignores: [
       'node_modules/**/*', // 排除 node_modules（通常默认排除）
-      'dist/**/*', // 排除 test 文件夹
+      'plugins/**/*', // 排除 plugins 文件夹
+      'dist/**/*', // 排除 dist 文件夹
       'tests/**/*', // 排除 test 文件夹
       'coverage/**/*', // 排除测试覆盖率文件夹
       '*.config.js', // 排除所有配置文件

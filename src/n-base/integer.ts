@@ -1,4 +1,4 @@
-import { Ordering, MAX_BASE, CLASS_NAME, Flag, Factory } from './consts';
+import { MAX_BASE, CLASS_NAME, Ordering, Flag } from './consts';
 import { charsets, unshift0 } from './common';
 import { expect, expectPrivateCalling } from './expect';
 import { safeCharset, safeInt } from './safe';
@@ -27,6 +27,8 @@ const parse = (n: string, base: number, charset: readonly string[]): number[] =>
   for (let i = 0; i < base; i++) {
     map[charset[i]] = i;
   }
+
+  // todo 如果没有charset那么将以数字+逗号为标记来分割解析
 
   const digits: number[] = [];
   const narr = Array.from(n); // use Array.from to support emoji chars
@@ -381,24 +383,26 @@ const purgeZeros = (a: number[]): number[] => {
  */
 export class NBaseInteger {
   // # Factories
-  static [Factory.N_BASE](priv: symbol, n: number, base: number): NBaseInteger {
-    expectPrivateCalling(priv);
+  /**
+   * Create an NBaseInteger with 10-base number
+   * @param n 10-base number
+   * @param base target base
+   * @returns
+   */
+  static from(n: number, base: number): NBaseInteger {
     return new NBaseInteger(Flag.PRIVATE, n, base);
   }
 
-  static [Factory.NSTR_BASE_CHRS](
-    priv: symbol,
-    s: string,
-    base: number,
-    charset: readonly string[]
-  ): NBaseInteger {
+  static [Flag.FACTORY](priv: symbol) {
     expectPrivateCalling(priv);
-    const a = new NBaseInteger(Flag.PRIVATE, 0, base);
-    a.#digits = parse(s.replace('-', ''), base, charset);
-    if (!a.isZero && s[0] === '-') {
-      a.#negative = true;
-    }
-    return a;
+    return (s: string, base: number, ch: readonly string[]): NBaseInteger => {
+      const a = new NBaseInteger(Flag.PRIVATE, 0, base);
+      a.#digits = parse(s.replace('-', ''), base, ch);
+      if (!a.isZero && s[0] === '-') {
+        a.#negative = true;
+      }
+      return a;
+    };
   }
 
   /**
@@ -410,6 +414,7 @@ export class NBaseInteger {
 
   /**
    * Set the default charset for NBaseInteger.
+   * @param charset Must exclude comma, dash, space, duplicate characters and control characters.
    */
   static set charset(charset: string) {
     const charsetArr = safeCharset(charset, MAX_BASE);
