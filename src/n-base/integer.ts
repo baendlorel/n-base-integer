@@ -796,46 +796,6 @@ export class NBaseInteger {
 
   // #region division
   /**
-   * Divides `this` by 2 and returns quotient and remainder.
-   */
-  divmod2(): NBaseIntegerDivResult {
-    const base = this.#base;
-    if (this.isZero) {
-      return {
-        quotient: new NBaseInteger(Flag.PRIVATE, 0, base),
-        remainder: new NBaseInteger(Flag.PRIVATE, 0, base),
-      };
-    }
-
-    // create a new NBaseInteger for the result
-    const ad = this.#digits as readonly number[];
-
-    // simple situations
-    if (ad.length === 1) {
-      const v = Math.floor(ad[0] / 2);
-      const r = ad[0] - v * 2;
-      return {
-        quotient: new NBaseInteger(Flag.PRIVATE, v, base),
-        remainder: new NBaseInteger(Flag.PRIVATE, r, base),
-      };
-    }
-
-    const quotient = new NBaseInteger(Flag.PRIVATE, 0, base);
-    // divide by 2
-    let carry = 0;
-    for (let i = ad.length - 1; i >= 0; i--) {
-      const dividend = ad[i] + carry * base;
-      const q = Math.floor(dividend / 2);
-      carry = dividend - q * 2;
-      quotient.#digits.unshift(q);
-    }
-    const remainder = new NBaseInteger(Flag.PRIVATE, carry, base);
-
-    purgeZeros(quotient.#digits);
-    return { quotient, remainder };
-  }
-
-  /**
    * Divides a by b and returns quotient and remainder.
    * @param a The dividend.
    * @param b The divisor.
@@ -1024,10 +984,10 @@ export class NBaseInteger {
         throw new RangeError('Exponent must be non-negative.');
       }
       if (b.isZero) {
-        return new NBaseInteger(Flag.PRIVATE, 1, this.#base); // a^0 = 1
+        return new NBaseInteger(Flag.PRIVATE, 1, this.#base); // a^0 = 1, includes 0^0 = 1
       }
       if (this.isZero) {
-        return new NBaseInteger(Flag.PRIVATE, 0, this.#base); // a^0 = 1
+        return new NBaseInteger(Flag.PRIVATE, 0, this.#base); // 0^b = 0
       }
       return NBaseInteger.#pow(this, arg);
     }
@@ -1287,6 +1247,7 @@ export class NBaseInteger {
     clone.#digits = this.#digits.slice();
     return clone;
   }
+
   /**
    * Returns a string representation of this number in the specified base.
    * - If `charset` is not given, it uses the default charset.
