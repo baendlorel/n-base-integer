@@ -52,7 +52,7 @@ export const NBaseInteger = new Proxy(NBI, {
    * - default charsets is '0-9A-Za-z'
    * @param n N-number string
    * @param base Must be an integer that >= 2
-   * @param charset Custom charset(length >= `base`), must exclude comma, dash, space, duplicate characters and control characters.
+   * @param charset Custom charset(length >= `base`), must exclude dash, space, duplicate characters and control characters.
    */
   (n: string, base: number, charset: string): NBI;
 };

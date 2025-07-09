@@ -412,14 +412,16 @@ export class NBaseInteger {
    * @returns
    */
   static fromDigits(n: number[], base: number, negative: boolean = false): NBaseInteger {
+    expect(Array.isArray(n), `'n' must be an array of digits.`);
+    expect(typeof negative === 'boolean', `'negative' must be a bool or omitted.`);
+
     const a = new NBaseInteger(Flag.PRIVATE, 1, safeBase(base));
-    a.#negative = negative;
+    a.#negative = Boolean(negative);
     const digits: number[] = [];
     for (let i = n.length - 1; i >= 0; i--) {
-      if (n[i] >= base) {
-        throw new RangeError(`Digit ${n[i]} at position ${n.length - 1 - i} is >= ${base}.`);
-      }
-      digits.push(n[i]);
+      const digit = safeInt(n[i]);
+      expect(0 <= digit && digit < base, `Digit ${n[i]} should be 1 ~ ${base - 1}.`);
+      digits.push(digit);
     }
 
     return a;
@@ -447,7 +449,7 @@ export class NBaseInteger {
 
   /**
    * Set the default charset for NBaseInteger.
-   * @param charset Must exclude comma, dash, space, duplicate characters and control characters.
+   * @param charset Must exclude dash, space, duplicate characters and control characters.
    */
   static set charset(charset: string) {
     const charsetArr = safeCharset(charset, MAX_BASE);
@@ -465,8 +467,7 @@ export class NBaseInteger {
   #safeOther(arg: number | NBaseInteger, clone?: symbol): NBaseInteger {
     // b is a normal number
     if (typeof arg === 'number') {
-      const n = safeInt(arg);
-      return new NBaseInteger(Flag.PRIVATE, n, this.#base);
+      return new NBaseInteger(Flag.PRIVATE, safeInt(arg), this.#base);
     }
 
     // b is also an NBaseInteger
@@ -1277,7 +1278,9 @@ export class NBaseInteger {
     return `${this.#negative ? '-' : ''}${abs.join('')}`;
   }
 
-  [Symbol.toPrimitive](hint: 'number' | 'string' | 'default'): string | number {
+  [Symbol.toPrimitive](
+    hint: 'number' | 'string' | 'default'
+  ): { number: number; string: string; default: string }[typeof hint] {
     return hint === 'number' ? this.#to10Base() : this.toString();
   }
   // #endregion
