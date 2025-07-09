@@ -1217,20 +1217,8 @@ export class NBaseInteger {
   }
 
   // todo 完成convertTo函数
-  convertTo(base: number, charset?: string): NBaseInteger {
-    expect(
-      Number.isSafeInteger(base) && 2 <= base && base <= MAX_BASE,
-      `'base' must be an integer from 2 to ${MAX_BASE}.`
-    );
-    if (charset !== undefined) {
-      expect(typeof charset === 'string', `'charset' must be a string with length >= 2.`);
-      const charsetArr = safeCharset(charset, base);
-      expect(
-        charsetArr.length >= base,
-        `Charset length(${charsetArr.length}) must > base(${base}).`
-      );
-      return new NBaseInteger(Flag.PRIVATE, this.sgn, base);
-    }
+  convertTo(base: number): NBaseInteger {
+    base = safeBase(base);
     return new NBaseInteger(Flag.PRIVATE, this.sgn, base);
   }
 

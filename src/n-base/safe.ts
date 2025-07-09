@@ -5,9 +5,14 @@ const charsetCache = new Map<string, string[]>();
 const hasControlCharacters = (charset: string): boolean => /\p{C}/u.test(charset);
 
 /**
- * Support emojis
+ * Assert `charset` is a valid.
+ * - **`base` must be valid first.**
+ * - Support emojis
  */
 export const safeCharset = (charset: string, base: number) => {
+  if (typeof charset !== 'string') {
+    throw new TypeError(`'charset' must be a string.`);
+  }
   const cache = charsetCache.get(charset);
   if (cache) {
     if (cache.length > base) {
@@ -37,11 +42,8 @@ export const safeCharset = (charset: string, base: number) => {
   if (deduped.has(' ')) {
     throw new TypeError(`'charset' must exclude ' '.`);
   }
-  if (arr.length < 2) {
-    throw new RangeError(`'charset' must contain at least 2 chars.`);
-  }
-  if (arr.length > base) {
-    throw new RangeError(`charset.length(${arr.length}) must <= base(${base}).`);
+  if (arr.length < base) {
+    throw new RangeError(`charset.length(${arr.length}) must >= base(${base}).`);
   }
   if (charsetCache.size > 100) {
     charsetCache.clear();
@@ -62,8 +64,8 @@ export const safeInt = (n: number) => {
  * @throws When `base` is not a safe integer or is less than 2.
  */
 export const safeBase = (base: number) => {
-  if (Number.isSafeInteger(base) && base > 1) {
-    throw new TypeError(`'base' must be an integer from 2 to ${MAX_BASE}.`);
+  if (!Number.isSafeInteger(base) || base < 2 || base > MAX_BASE) {
+    throw new TypeError(`'base' must be a 2 ~ ${MAX_BASE} integer.`);
   }
   return base;
 };
