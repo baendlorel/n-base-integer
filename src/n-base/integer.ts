@@ -439,7 +439,7 @@ export class NBaseInteger {
    * @param base target base
    * @returns
    */
-  static fromDigits(n: number[], base: number, negative: boolean = false): NBaseInteger {
+  static fromDigits(n: number[], base: number, negative = false): NBaseInteger {
     expect(Array.isArray(n), `'n' must be an array of digits.`);
     expect(typeof negative === 'boolean', `'negative' must be a bool or omitted.`);
 
@@ -1255,7 +1255,7 @@ export class NBaseInteger {
 
     const reversedRemainder: number[] = [];
     // ignore negative sign
-    let abd = ab.#digits;
+    const abd = ab.#digits;
     let cur = this.#digits;
 
     do {
