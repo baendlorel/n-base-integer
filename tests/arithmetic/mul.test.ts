@@ -4,7 +4,7 @@ import { NBaseInteger } from '@/index';
 describe('NBaseInteger multiply', () => {
   const base = 10;
   function n(n: number) {
-    return NBaseInteger(n, base);
+    return NBaseInteger.from(n, base);
   }
 
   it('mul positive', () => {
@@ -56,9 +56,9 @@ describe('NBaseInteger multiply', () => {
   });
 
   it('mul in other bases', () => {
-    const n2 = (x: number) => NBaseInteger(x, 2);
+    const n2 = (x: number) => NBaseInteger.from(x, 2);
     expect(n2(3).mul(2).toString()).toBe('110'); // 3*2=6 in binary
-    const n16 = (x: number) => NBaseInteger(x, 16);
+    const n16 = (x: number) => NBaseInteger.from(x, 16);
     expect(n16(15).mul(15).toString()).toBe('E1'); // 15*15=225 in hex
   });
 });

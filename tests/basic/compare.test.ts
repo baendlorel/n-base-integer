@@ -2,11 +2,11 @@ import { describe, it, expect } from '@jest/globals';
 import { NBaseInteger } from '@/index';
 
 describe('NBaseInteger comparison functions', () => {
-  const a = NBaseInteger(123, 10);
-  const b = NBaseInteger(456, 10);
-  const c = NBaseInteger(123, 10);
-  const negA = NBaseInteger(-123, 10);
-  const negB = NBaseInteger(-456, 10);
+  const a = NBaseInteger.from(123, 10);
+  const b = NBaseInteger.from(456, 10);
+  const c = NBaseInteger.from(123, 10);
+  const negA = NBaseInteger.from(-123, 10);
+  const negB = NBaseInteger.from(-456, 10);
 
   it('cmp and cmpAbs', () => {
     expect(a.cmp(c)).toBe(0);
