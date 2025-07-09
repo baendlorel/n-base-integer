@@ -34,7 +34,7 @@ export default [
       commonjs(),
       typescript({
         tsconfig: tsconfigFile,
-        transformers: createConstFoldTransformers(['CLASS_NAME', 'DEF0', 'DEF1', 'DEF2']),
+        transformers: createConstFoldTransformers(),
       }),
       void babel({
         babelHelpers: 'bundled',

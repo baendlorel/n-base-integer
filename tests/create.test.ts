@@ -1,6 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { NBaseInteger } from '../src';
-import { NBaseInteger as NBI } from '../src/n-base/integer';
+import { NBaseInteger } from '@/index';
 
 describe('NBaseInteger Creation Tests', () => {
   describe('Factory function (index.ts)', () => {
@@ -157,25 +156,25 @@ describe('NBaseInteger Creation Tests', () => {
   describe('Static method: from', () => {
     describe('Valid cases', () => {
       it('should create from positive number', () => {
-        const num = NBI.from(123, 10);
+        const num = NBaseInteger.from(123, 10);
         expect(num.toString()).toBe('123');
         expect(num.base).toBe(10);
       });
 
       it('should create from negative number', () => {
-        const num = NBI.from(-123, 10);
+        const num = NBaseInteger.from(-123, 10);
         expect(num.toString()).toBe('-123');
         expect(num.sgn).toBe(-1);
       });
 
       it('should create from zero', () => {
-        const num = NBI.from(0, 10);
+        const num = NBaseInteger.from(0, 10);
         expect(num.isZero).toBe(true);
       });
 
       it('should create with different bases', () => {
-        const num2 = NBI.from(10, 2);
-        const num16 = NBI.from(255, 16);
+        const num2 = NBaseInteger.from(10, 2);
+        const num16 = NBaseInteger.from(255, 16);
         expect(num2.base).toBe(2);
         expect(num16.base).toBe(16);
       });
@@ -183,31 +182,31 @@ describe('NBaseInteger Creation Tests', () => {
 
     describe('Error cases', () => {
       it('should throw error when n is not a safe integer', () => {
-        expect(() => NBI.from(Number.MAX_SAFE_INTEGER + 1, 10)).toThrow(
+        expect(() => NBaseInteger.from(Number.MAX_SAFE_INTEGER + 1, 10)).toThrow(
           'The method is not called with a safe integer, got 9007199254740992.'
         );
       });
 
       it('should throw error when n is NaN', () => {
-        expect(() => NBI.from(NaN, 10)).toThrow(
+        expect(() => NBaseInteger.from(NaN, 10)).toThrow(
           'The method is not called with a safe integer, got NaN.'
         );
       });
 
       it('should throw error when n is Infinity', () => {
-        expect(() => NBI.from(Infinity, 10)).toThrow(
+        expect(() => NBaseInteger.from(Infinity, 10)).toThrow(
           'The method is not called with a safe integer, got Infinity.'
         );
       });
 
       it('should throw error when n is a float', () => {
-        expect(() => NBI.from(12.5, 10)).toThrow(
+        expect(() => NBaseInteger.from(12.5, 10)).toThrow(
           'The method is not called with a safe integer, got 12.5.'
         );
       });
 
       it('should throw error when base is invalid', () => {
-        expect(() => NBI.from(123, 1)).toThrow("'base' must be a 2 ~ 1000000 integer.");
+        expect(() => NBaseInteger.from(123, 1)).toThrow("'base' must be a 2 ~ 1000000 integer.");
       });
     });
   });
@@ -215,77 +214,81 @@ describe('NBaseInteger Creation Tests', () => {
   describe('Static method: fromDigits', () => {
     describe('Valid cases', () => {
       it('should create from digit array', () => {
-        const num = NBI.fromDigits([1, 2, 3], 10);
+        const num = NBaseInteger.fromDigits([1, 2, 3], 10);
         expect(num.toString()).toBe('123');
       });
 
       it('should create negative number', () => {
-        const num = NBI.fromDigits([1, 2, 3], 10, true);
+        const num = NBaseInteger.fromDigits([1, 2, 3], 10, true);
         expect(num.toString()).toBe('-123');
         expect(num.sgn).toBe(-1);
       });
 
       it('should create positive number explicitly', () => {
-        const num = NBI.fromDigits([1, 2, 3], 10, false);
+        const num = NBaseInteger.fromDigits([1, 2, 3], 10, false);
         expect(num.toString()).toBe('123');
         expect(num.sgn).toBe(1);
       });
 
       it('should handle different bases', () => {
-        const num2 = NBI.fromDigits([1, 0, 1, 0], 2);
-        const num16 = NBI.fromDigits([15, 15], 16);
+        const num2 = NBaseInteger.fromDigits([1, 0, 1, 0], 2);
+        const num16 = NBaseInteger.fromDigits([15, 15], 16);
         expect(num2.base).toBe(2);
         expect(num16.base).toBe(16);
       });
 
       it('should handle single digit', () => {
-        const num = NBI.fromDigits([5], 10);
+        const num = NBaseInteger.fromDigits([5], 10);
         expect(num.toString()).toBe('5');
       });
 
       it('should handle zero', () => {
-        const num = NBI.fromDigits([0], 10);
+        const num = NBaseInteger.fromDigits([0], 10);
         expect(num.isZero).toBe(true);
       });
     });
 
     describe('Error cases', () => {
       it('should throw error when n is not an array', () => {
-        expect(() => (NBI.fromDigits as any)('123', 10)).toThrow("'n' must be an array of digits.");
+        expect(() => (NBaseInteger.fromDigits as any)('123', 10)).toThrow(
+          "'n' must be an array of digits."
+        );
       });
 
       it('should throw error when negative is not a boolean', () => {
-        expect(() => (NBI.fromDigits as any)([1, 2, 3], 10, 'true')).toThrow(
+        expect(() => (NBaseInteger.fromDigits as any)([1, 2, 3], 10, 'true')).toThrow(
           "'negative' must be a bool or omitted."
         );
       });
 
       it('should throw error when base is invalid', () => {
-        expect(() => NBI.fromDigits([1, 2, 3], 1)).toThrow("'base' must be a 2 ~ 1000000 integer.");
+        expect(() => NBaseInteger.fromDigits([1, 2, 3], 1)).toThrow(
+          "'base' must be a 2 ~ 1000000 integer."
+        );
       });
 
       it('should throw error when digit is not a safe integer', () => {
-        expect(() => NBI.fromDigits([1, 2.5, 3], 10)).toThrow(
+        expect(() => NBaseInteger.fromDigits([1, 2.5, 3], 10)).toThrow(
           'The method is not called with a safe integer, got 2.5.'
         );
       });
 
       it('should throw error when digit is NaN', () => {
-        expect(() => NBI.fromDigits([1, NaN, 3], 10)).toThrow(
+        expect(() => NBaseInteger.fromDigits([1, NaN, 3], 10)).toThrow(
           'The method is not called with a safe integer, got NaN.'
         );
       });
 
       it('should throw error when digit is out of range (negative)', () => {
-        expect(() => NBI.fromDigits([1, -1, 3], 10)).toThrow('Digit -1 should be 1 ~ 9.');
+        expect(() => NBaseInteger.fromDigits([1, -1, 3], 10)).toThrow('Digit -1 should be 1 ~ 9.');
       });
 
       it('should throw error when digit is out of range (too large)', () => {
-        expect(() => NBI.fromDigits([1, 10, 3], 10)).toThrow('Digit 10 should be 1 ~ 9.');
+        expect(() => NBaseInteger.fromDigits([1, 10, 3], 10)).toThrow('Digit 10 should be 1 ~ 9.');
       });
 
       it('should throw error when digit equals base', () => {
-        expect(() => NBI.fromDigits([1, 2, 2], 2)).toThrow('Digit 2 should be 1 ~ 1.');
+        expect(() => NBaseInteger.fromDigits([1, 2, 2], 2)).toThrow('Digit 2 should be 1 ~ 1.');
       });
     });
   });

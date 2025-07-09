@@ -55,6 +55,20 @@ const parse = (n: string, base: number, charset: readonly string[]): number[] =>
   return purgeZeros(digits);
 };
 
+/**
+ * Parse a 10-base number to `base`-base number
+ *
+ * ! ONLY use when n and base is checked. n should > 0
+ */
+const parseNumber = (n: number, base: number) => {
+  const digits: number[] = [];
+  do {
+    digits.push(n % base);
+    n = Math.floor(n / base);
+  } while (n > 0);
+  return digits;
+};
+
 const isZero = (a: readonly number[]): boolean => a.length === 1 && a[0] === 0;
 
 const cmp = (a: readonly number[], b: readonly number[]): Ordering => {
@@ -385,6 +399,20 @@ const purgeZeros = (a: number[]): number[] => {
   a.length = 1;
   return a;
 };
+
+const maxSafeIntegerCache = new Map<number, number[]>();
+const maxSafeIntegerInBase = (base: number): number[] => {
+  const exist = maxSafeIntegerCache.get(base);
+  if (exist) {
+    return exist;
+  }
+  const digits: number[] = parseNumber(Number.MAX_SAFE_INTEGER, base);
+  if (maxSafeIntegerCache.size > 100) {
+    maxSafeIntegerCache.clear(); // clear cache if it is too large
+  }
+  maxSafeIntegerCache.set(base, digits);
+  return digits;
+};
 // #endregion
 
 // #region NBaseInteger
@@ -578,11 +606,7 @@ export class NBaseInteger {
     }
 
     // creating
-    this.#digits = [];
-    do {
-      this.#digits.push(n % base);
-      n = Math.floor(n / base);
-    } while (n > 0);
+    this.#digits = parseNumber(n, base);
   }
   // #endregion
 
@@ -1220,13 +1244,68 @@ export class NBaseInteger {
   // todo 完成convertTo函数
   convertTo(base: number): NBaseInteger {
     base = safeBase(base);
-    return new NBaseInteger(Flag.PRIVATE, this.sgn, base);
+    const ab = new NBaseInteger(Flag.PRIVATE, 0, this.#base);
+
+    const reversedRemainder: number[] = [];
+    // ignore negative sign
+    let abd = ab.#digits;
+    let cur = this.#digits;
+
+    do {
+      if (isNaN(cur[0])) {
+        throw 1;
+      }
+      console.log('cur', cur);
+      const qr = divide(cur, abd, this.#base);
+      cur = qr.quotient;
+      reversedRemainder.push(qr.remainder[0]);
+    } while (!isZero(cur));
+
+    const result = new NBaseInteger(Flag.PRIVATE, this.sgn, base);
+    result.#digits = reversedRemainder;
+
+    return result;
   }
 
-  #to10Base(): number {
-    let sum = 0;
+  /**
+   * Convert `this` to a normal number
+   * @throws If the number > `Number.MAX_SAFE_INTEGER`
+   * @returns
+   */
+  toNumber(): number {
+    if (this.isZero) {
+      return 0;
+    }
+    const maxSafeInt = maxSafeIntegerInBase(this.#base);
+    switch (cmp(this.#digits, maxSafeInt)) {
+      case Ordering.Greater:
+        throw new RangeError(
+          `The number is too large(> Number.MAX_SAFE_INTEGER). Please use toBigInt() instead.`
+        );
+      case Ordering.Equal:
+        return Number.MAX_SAFE_INTEGER;
+      case Ordering.Less: {
+        let sum = 0;
+        for (let i = 0; i < this.#digits.length; i++) {
+          sum += this.#digits[i] * i ** this.#base;
+        }
+        return sum;
+      }
+    }
+  }
+
+  /**
+   * Convert `this` to a bigint
+   * @returns
+   */
+  toBigInt(): bigint {
+    if (this.isZero) {
+      return 0n;
+    }
+    let sum = 0n;
+    const base = BigInt(this.#base);
     for (let i = 0; i < this.#digits.length; i++) {
-      sum += this.#digits[i] * i ** this.#base;
+      sum += BigInt(this.#digits[i]) * BigInt(i) ** base;
     }
     return sum;
   }
@@ -1270,7 +1349,7 @@ export class NBaseInteger {
   [Symbol.toPrimitive](
     hint: 'number' | 'string' | 'default'
   ): { number: number; string: string; default: string }[typeof hint] {
-    return hint === 'number' ? this.#to10Base() : this.toString();
+    return hint === 'number' ? this.toNumber() : this.toString();
   }
   // #endregion
 }
