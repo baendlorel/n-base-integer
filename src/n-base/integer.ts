@@ -1,4 +1,4 @@
-import { MAX_BASE, CLASS_NAME, Ordering, Flag } from './consts';
+import { MAX_BASE, CLASS_NAME, Flag } from './consts';
 import { charsets, unshift0 } from './common';
 import { expect, expectPrivateCalling } from './expect';
 import { safeCharset, safeInt } from './safe';
@@ -13,6 +13,16 @@ interface PrimitiveDivResult {
   remainder: number[];
 }
 
+/**
+ * Enum representing the result of a comparison operation.
+ * - Name and values are the same as it is in **Rust**
+ */
+const enum Ordering {
+  Less = -1,
+  Equal,
+  Greater,
+}
+
 // #region primitive functions
 /**
  * Checking if `n` only have chars in `charset`
@@ -22,13 +32,37 @@ interface PrimitiveDivResult {
  * - `charset` has no duplicate chars
  * - Numbers like '00124' will be purged to '124'
  */
-const parse = (n: string, base: number, charset: readonly string[]): number[] => {
+const parse = (n: string, base: number, charset: readonly string[] | null): number[] => {
+  // Use default charset when we got null
+  if (charset === null) {
+    charset = charsets.default;
+
+    // If default charset is not enough, parse it as numbers separated by comma
+    if (charset.length < base) {
+      if (!/^[0-9]+(?:,[0-9]+)*$/.test(n)) {
+        throw new TypeError(
+          "Parse failed. Expected 'n' to be a string of numbers separated by commas."
+        );
+      }
+
+      const arr = n.split(',');
+      const digits: number[] = [];
+      for (let i = arr.length - 1; i >= 0; i++) {
+        digits[i] = parseInt(arr[i], 10);
+        if (digits[i] >= base) {
+          throw new RangeError(
+            `Every digit must < ${base}, got ${digits[i]} in position ${arr.length - 1 - i}.`
+          );
+        }
+      }
+      return purgeZeros(digits);
+    }
+  }
+
   const map: Record<string, number> = {};
   for (let i = 0; i < base; i++) {
     map[charset[i]] = i;
   }
-
-  // todo 如果没有charset那么将以数字+逗号为标记来分割解析
 
   const digits: number[] = [];
   const narr = Array.from(n); // use Array.from to support emoji chars
@@ -378,6 +412,7 @@ const purgeZeros = (a: number[]): number[] => {
 };
 // #endregion
 
+// #region NBaseInteger
 /**
  * NBase is a class for n-base numeral system
  */
@@ -395,7 +430,7 @@ export class NBaseInteger {
 
   static [Flag.FACTORY](priv: symbol) {
     expectPrivateCalling(priv);
-    return (s: string, base: number, ch: readonly string[]): NBaseInteger => {
+    return (s: string, base: number, ch: readonly string[] | null): NBaseInteger => {
       const a = new NBaseInteger(Flag.PRIVATE, 0, base);
       a.#digits = parse(s.replace('-', ''), base, ch);
       if (!a.isZero && s[0] === '-') {
@@ -1289,3 +1324,4 @@ export class NBaseInteger {
   }
   // #endregion
 }
+// #endregion

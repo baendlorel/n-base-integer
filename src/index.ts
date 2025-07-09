@@ -29,9 +29,9 @@ export const NBaseInteger = new Proxy(NBI, {
       case 0:
         throw new TypeError(`${DEF} requires at least one argument.`);
       case 1:
-        return create(safeN(args[0]), 10, charsets.default);
+        return create(safeN(args[0]), 10, null);
       case 2:
-        return create(safeN(args[0]), safeBase(args[1]), charsets.default);
+        return create(safeN(args[0]), safeBase(args[1]), null);
       case 3:
         return create(safeN(args[0]), safeBase(args[1]), safeCharset(args[2], args[1]));
       default:
