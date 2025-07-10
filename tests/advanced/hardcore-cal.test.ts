@@ -114,12 +114,5 @@ describe('NBaseInteger hardcore add/mul', () => {
     const n = '900';
     const huge = NBaseInteger(n);
     const result = huge.pow(huge);
-    console.log(result.toString());
-    // expect(result.toString()).toMatch(new RegExp(`^[9]{${n.length - 1}}8[0]{${n.length - 1}}1$`));
   });
-
-  // it('powMontgomeryLadder', () => {
-  //   const a = powMontgomeryLadder([9, 9, 9, 9], [9, 9, 9, 9], 10);
-  //   console.log(a.reverse().join('')); // Should print a very large number
-  // });
 });
