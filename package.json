@@ -34,7 +34,7 @@
 		"test": "clear & jest",
 		"lint": "eslint .",
 		"plugin": "tsc -p tsconfig.plugin.json",
-		"build": "rm -rf dist && pnpm plugin && rollup -c"
+		"build": "rimraf dist && pnpm plugin && rollup -c"
 	},
 	"peerDependencies": {
 		"jest": "^30.0.0"
@@ -60,6 +60,7 @@
 		"@types/node": "^24.0.4",
 		"eslint": "^9.30.0",
 		"jest": "^30.0.3",
+		"rimraf": "^6.0.1",
 		"rollup": "^4.44.1",
 		"rollup-plugin-dts": "^6.2.1",
 		"tsc-alias": "^1.8.16",

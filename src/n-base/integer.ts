@@ -148,6 +148,7 @@ const minus = (a: readonly number[], b: readonly number[], base: number): number
   return purgeZeros(diff);
 };
 
+// todo 优化减少内存占用，为atob
 const multiply = (a: readonly number[], b: readonly number[], base: number): number[] => {
   const rows: number[][] = [];
   let maxRowLen = 0;
@@ -343,7 +344,8 @@ const pow = (a: readonly number[], exponent: number[], base: number): number[] =
       case 2:
         return multiply(a, a, base);
       case 3:
-        return multiply(a, multiply(a, a, base), base);
+        const t = multiply(a, a, base);
+        return multiply(a, t, base);
       default:
         break;
     }
@@ -354,7 +356,8 @@ const pow = (a: readonly number[], exponent: number[], base: number): number[] =
   if (isZero(qr.remainder)) {
     return multiply(v, v, base);
   } else {
-    return multiply(v, multiply(v, a, base), base);
+    const t = multiply(v, a, base);
+    return multiply(v, t, base);
   }
 };
 
@@ -368,7 +371,8 @@ const powWith10Base = (a: readonly number[], exponent: number, base: number): nu
     case 2:
       return multiply(a, a, base);
     case 3:
-      return multiply(a, multiply(a, a, base), base);
+      const t = multiply(a, a, base);
+      return multiply(a, t, base);
     default:
       break;
   }
@@ -379,7 +383,8 @@ const powWith10Base = (a: readonly number[], exponent: number, base: number): nu
   if (remainder === 0) {
     return multiply(v, v, base);
   } else {
-    return multiply(v, multiply(v, a, base), base);
+    const t = multiply(v, a, base);
+    return multiply(v, t, base);
   }
 };
 
