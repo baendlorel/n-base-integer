@@ -6,6 +6,7 @@
 		"email": "futami16237@gmail.com"
 	},
 	"description": "Arbitrary-base integer with custom charset, supporting addition, subtraction, multiplication, comparison, and common base conversion utilities.",
+	"description_zh": "N进制数类，支持加减乘除、比较大小、进制转换",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"files": [
