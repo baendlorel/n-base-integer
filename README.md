@@ -2,6 +2,8 @@
 
 A TypeScript library for creating, converting, and performing arithmetic with integers in arbitrary bases (n-base), supporting custom charsets and large numbers.
 
+For more awesome packages, check out [my homepage💛](https://baendlorel.github.io/?repoType=npm)
+
 ## Features
 
 - **Arbitrary base support**: Create integers in any base from 2 to 1,000,000
